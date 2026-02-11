@@ -32,7 +32,7 @@
 namespace tomocam {
     template <typename T>
     Array<T> MBIR(const Array<T> &projs, const std::vector<T> &angles,
-                  const dims_t &recon_dims, size_t max_iter, T sigma, T p, T tol,
+                  const dims_t &recon_dims, size_t max_iter, T lambda, T mu, T tol,
                   T xtol) {
 
         // normalize projections
@@ -71,29 +71,17 @@ namespace tomocam {
         auto yT = backproj(y, polar_grid, out_dims);
 
         // setup gradient operator
-        opt::Function<T> grad = [&](const Array<T> &x) {
-            auto g_data = gradient(x, yT, polar_grid);
-            // apply qggmrf penalty
-            opt::qggmrf(x, g_data, sigma, p);
-            return g_data;
-        };
-        // setup loss function
-        opt::Residual<T> loss = [&](const Array<T> &x) {
-            return array::norm2(forward(x, polar_grid) - y);
+        opt::Function<T> ATA = [&](const Array<T> &x) {
+            return sysmat(x, polar_grid);
         };
 
         // run optimization
         auto x0 = fbp(y, polar_grid, out_dims);
-        std::cout << std::format("Starting MBIR with NAG optimization...\n");
+        std::cout << std::format("Starting MBIR with CG optimization...\n");
 
-        // estimate lipschitz constant
-        auto xtmp = Array<T>::like(x0, (T)1);
-        auto ytmp = Array<T>::like(x0, (T)0);
-        auto gtmp = gradient(xtmp, ytmp, polar_grid);
-        auto L = array::max(gtmp);
-        std::cout << std::format("Approximate Lipschitz constant: {:.2e}\n", L);
+        auto reconVolume =
+            opt::split_bregman(ATA, yT, x0, lambda, mu, max_iter, 5, tol, xtol);
 
-        auto reconVolume = opt::nagopt(grad, loss, x0, max_iter, L, tol, xtol);
         // crop to original dimensions
         return crop3d(reconVolume, recon_dims, PadType::SYMMETRIC);
     }

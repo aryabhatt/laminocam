@@ -85,8 +85,8 @@ int main(int argc, char **argv) {
     // find keys in json, else set default values
     size_t max_iter =
         config.contains("max_iter") ? config["max_iter"].get<size_t>() : 50;
-    float sigma = config.contains("sigma") ? config["sigma"].get<float>() : 100.0f;
-    float p = config.contains("p") ? config["p"].get<float>() : 1.2f;
+    float lambda = config.contains("lambda") ? config["lambda"].get<float>() : 0.1f;
+    float mu = config.contains("mu") ? config["mu"].get<float>() : 5.0f;
     float tol = config.contains("tol") ? config["tol"].get<float>() : 1e-5f;
     float xtol = config.contains("xtol") ? config["xtol"].get<float>() : 1e-5f;
     size_t thickness =
@@ -107,10 +107,10 @@ int main(int argc, char **argv) {
     std::cout << std::format("  Recon Dimensions: {} x {} x {}\n", thickness,
                              projs.nrows(), projs.ncols());
     std::cout << std::format("  Max iterations: {}\n", max_iter);
-    std::cout << std::format("  Sigma: {:.2f}\n", sigma);
-    std::cout << std::format("  p: {:.2f}\n", p);
+    std::cout << std::format("  \u03BB: {:.2f}\n", lambda);
+    std::cout << std::format("  \u03BC: {:.2f}\n", mu);
     std::cout << std::format("  Tolerance: {:.2e}\n", tol);
-    std::cout << std::format("  XTolerance: {:.2e}\n", xtol);
+    std::cout << std::format("  X-tolerance: {:.2e}\n", xtol);
 
     // set reconstruction dimensions
     tomocam::dims_t img_dims = {thickness, projs.nrows(), projs.ncols()};
@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
     tomocam::Timer t0;
     t0.start();
     auto recon =
-        tomocam::MBIR(projs, angles, img_dims, max_iter, sigma, p, tol, xtol);
+        tomocam::MBIR(projs, angles, img_dims, max_iter, lambda, mu, tol, xtol);
     t0.stop();
     std::cout << std::format("Reconstruction completed in {:.2f} seconds.\n",
                              t0.seconds());

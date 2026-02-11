@@ -49,7 +49,7 @@ namespace tomocam::opt {
      * @return Reconstructed solution vector
      */
     template <typename T>
-    Array<T> split_bregman(const Function<T> &A, const Array<T> &y, Array<T> x0,
+    Array<T> split_bregman(const Function<T> &A, const Array<T> &y, const Array<T> &x0,
                            T lambda, T mu, size_t outer_max, size_t inner_max, T tol,
                            T xtol);
 

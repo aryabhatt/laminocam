@@ -46,8 +46,8 @@ namespace tomocam::tiff {
 
         // allocate memory
         size_t nscls = static_cast<size_t>(npages);
-        size_t nrows = static_cast<size_t>(w);
-        size_t ncols = static_cast<size_t>(h);
+        size_t nrows = static_cast<size_t>(h);
+        size_t ncols = static_cast<size_t>(w);
         Array<float> data(nscls, nrows, ncols);
 
         float *buf = (float *)_TIFFmalloc(w * sizeof(float));

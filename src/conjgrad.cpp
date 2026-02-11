@@ -51,7 +51,8 @@ namespace tomocam::opt {
             r -= Ap * alpha;
 
             auto rs_new = array::dot(r, r);
-            std::cout << std::format("iter: {}, residual: {}\n", iter, std::sqrt(rs_new));
+            std::cout << std::format("iter: {}, residual: {}\n", iter,
+                                     std::sqrt(rs_new));
             if (rs_new < tol * tol) { break; }
 
             p = r + (p * (rs_new / rs_old));
