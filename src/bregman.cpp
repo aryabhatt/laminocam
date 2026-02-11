@@ -18,9 +18,11 @@
  *---------------------------------------------------------------------------------
  */
 
-#include "bregman.h"
+#include <format>
+
 #include "array.h"
 #include "array_ops.h"
+#include "bregman.h"
 #include "optimize.h"
 
 namespace tomocam::opt {
@@ -83,6 +85,8 @@ namespace tomocam::opt {
 
             // Check convergence
             T norm_diff = array::norm2(x - x_old) / (array::norm2(x_old) + EPSILON);
+            std::cout << std::format(
+                "Outer iter: {}, ‖xᵏ⁺¹ − xᵏ‖₂ / ‖xᵏ‖₂: {:.6e}\n", iter, norm_diff);
             x_old = x.clone();
             if (norm_diff < xtol) { break; }
         }

@@ -80,7 +80,7 @@ namespace tomocam {
         std::cout << std::format("Starting MBIR with CG optimization...\n");
 
         auto reconVolume =
-            opt::split_bregman(ATA, yT, x0, lambda, mu, max_iter, 5, tol, xtol);
+            opt::split_bregman(ATA, yT, x0, lambda, mu, max_iter, 4, tol, xtol);
 
         // crop to original dimensions
         return crop3d(reconVolume, recon_dims, PadType::SYMMETRIC);

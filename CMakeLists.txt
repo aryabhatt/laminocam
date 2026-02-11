@@ -31,7 +31,6 @@ set(SRC
     src/lipschitz.cpp
     src/mbir.cpp
     src/qggmrf.cpp
-    src/recon.cpp
    )
 #if (${USE_GPU})
 #  list(APPEND SRC src/gpu/polar_grid.cu)
@@ -48,7 +47,15 @@ find_package(TBB REQUIRED)
 find_package(FFTW REQUIRED)
 find_package(HDF5 REQUIRED COMPONENTS CXX)
 find_package(TIFF REQUIRED)
-find_package(nlohmann_json REQUIRED)
+
+# toml++
+include(FetchContent)
+FetchContent_Declare(
+    tomlplusplus
+    GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
+    GIT_TAG        v3.4.0
+)
+FetchContent_MakeAvailable(tomlplusplus)
 
 # finufft
 find_package(finufft REQUIRED)
@@ -62,11 +69,12 @@ set_property(TARGET tomocam PROPERTY CXX_STANDARD 20)
 
 # recon executable
 add_executable(recon src/recon.cpp)
-target_link_libraries(recon PRIVATE tomocam)
+target_link_libraries(recon PRIVATE tomocam tomlplusplus::tomlplusplus)
 
 
 option(ENABLE_TESTS "Enable tests" OFF)
 if (${ENABLE_TESTS})
+    find_package(nlohmann_json REQUIRED)
     enable_testing()
     add_subdirectory(tests)
 endif()

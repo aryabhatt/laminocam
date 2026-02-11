@@ -25,51 +25,64 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-
-#include <nlohmann/json.hpp>
-using json = nlohmann::json;
+#include <toml++/toml.h>
 
 #include "tomocam.h"
 #include "timer.h"
 
 void dump_config() {
-    std::ofstream outf("config_template.json", std::ios::out);
-    outf << "{\n";
-    outf << "  \"filename\": \"path/to/dataset.tif\",\n";
-    outf << "  \"angles\": \"path/to/angles.txt\",\n";
-    outf << "  \"max_iter\": 50,\n";
-    outf << "  \"sigma\": 100.0,\n";
-    outf << "  \"p\": 1.2,\n";
-    outf << "  \"tol\": 1e-5,\n";
-    outf << "  \"xtol\": 1e-5,\n";
-    outf << "  \"thickness\": 21\n";
-    outf << "}\n";
+    std::ofstream outf("config_template.toml", std::ios::out);
+    outf << "[input]\n";
+    outf << "filename = \"/path/to/dataset.tif\"\n";
+    outf << "angles = \"/path/to/angles.txt\"\n";
+    outf << "\n";
+    outf << "[output]\n";
+    outf << "filename = \"output.tiff\"\n";
+    outf << "\n";
+    outf << "[recon_params]\n";
+    outf << "max_iters = 50\n";
+    outf << "lambda = 0.1\n";
+    outf << "mu = 5.0\n";
+    outf << "tol = 1e-5\n";
+    outf << "xtol = 1e-5\n";
+    outf << "thickness = 21\n";
     outf.close();
 }
 
 int main(int argc, char **argv) {
 
-    // paser JSON input
+    // parse TOML input
     if (argc < 2) {
-        std::cerr << std::format("Usage: {} <input.json>\n", argv[0]);
-        std::cerr << "Please see config_template.json for an example input file.\n";
+        std::cerr << std::format("Usage: {} <input.toml>\n", argv[0]);
+        std::cerr << "Please see config_template.toml for an example input file.\n";
         dump_config();
         return 1;
     }
 
     std::string input_file = argv[1];
-    std::ifstream ifs(input_file);
-    if (!ifs.is_open()) {
-        std::cerr << "Error: Could not open input file " << input_file << "\n";
+    toml::table config;
+    try {
+        config = toml::parse_file(input_file);
+    } catch (const toml::parse_error& err) {
+        std::cerr << "Error parsing TOML file:\n" << err << "\n";
         return 1;
     }
-    auto config = json::parse(ifs);
-    ifs.close();
-    auto dataset = config["filename"].get<std::string>();
+
+    // get the input entry
+    auto input = config["input"].as_table();
+    std::string dataset = (*input)["filename"].value_or("");
+    if (dataset.empty()) {
+        std::cerr << "Error: projection file not specified in input\n";
+        return 1;
+    }
     auto projs = tomocam::tiff::read(dataset);
 
     // read projection angles 
-    std::string angles_file = config["angles"];
+    std::string angles_file = (*input)["angles"].value_or("");
+    if (angles_file.empty()) {
+        std::cerr << "Error: angles file not specified in input\n";
+        return 1;
+    }
     std::ifstream fp(angles_file);
     if (!fp.is_open()) {
         std::cerr << std::format("Error: Could not open angles file {}\n", angles_file);
@@ -82,15 +95,14 @@ int main(int argc, char **argv) {
     }
     fp.close();
 
-    // find keys in json, else set default values
-    size_t max_iter =
-        config.contains("max_iter") ? config["max_iter"].get<size_t>() : 50;
-    float lambda = config.contains("lambda") ? config["lambda"].get<float>() : 0.1f;
-    float mu = config.contains("mu") ? config["mu"].get<float>() : 5.0f;
-    float tol = config.contains("tol") ? config["tol"].get<float>() : 1e-5f;
-    float xtol = config.contains("xtol") ? config["xtol"].get<float>() : 1e-5f;
-    size_t thickness =
-        config.contains("thickness") ? config["thickness"].get<size_t>() : 21;
+    // get recon_params with defaults
+    auto params = config["recon_params"].as_table();
+    size_t max_iter = params ? (*params)["max_iters"].value_or(50) : 50;
+    float lambda = params ? (*params)["lambda"].value_or(0.1f) : 0.1f;
+    float mu = params ? (*params)["mu"].value_or(5.0f) : 5.0f;
+    float tol = params ? (*params)["tol"].value_or(1e-5f) : 1e-5f;
+    float xtol = params ? (*params)["xtol"].value_or(1e-5f) : 1e-5f;
+    size_t thickness = (*params)["thickness"].value_or(21);
 
     // ensure angles are in radians
     auto max_angle = *std::max_element(angles.begin(), angles.end());
@@ -100,8 +112,8 @@ int main(int argc, char **argv) {
     // print parameters
     std::cout << "Reconstruction parameters:\n";
     std::cout << std::format("  Dataset: {}\n", dataset);
-    std::cout << std::format("  Projections: {} x {} x {}\n", projs.nrows(),
-                             projs.ncols(), projs.nslices());
+    std::cout << std::format("  Projections: {} x {} x {}\n", projs.nslices(),
+                             projs.nrows(), projs.ncols());
     std::cout << std::format("  Angles: {} values from {:.2f} to {:.2f} radians\n",
                              angles.size(), angles.front(), angles.back());
     std::cout << std::format("  Recon Dimensions: {} x {} x {}\n", thickness,
@@ -124,6 +136,9 @@ int main(int argc, char **argv) {
                              t0.seconds());
 
     // save result to tiff
-    tomocam::tiff::write("recon.tif", recon);
+    // parse output filename from config
+    auto output = config["output"].as_table();
+    std::string output_file = (*output)["filename"].value_or("recon.tiff");
+    tomocam::tiff::write(output_file, recon);
     return 0;
 }
