@@ -27,8 +27,12 @@
 #include <string>
 #include <toml++/toml.h>
 
+#include "optimize.h"
 #include "tomocam.h"
 #include "timer.h"
+
+
+using namespace tomocam;
 
 void dump_config() {
     std::ofstream outf("config_template.toml", std::ios::out);
@@ -41,11 +45,17 @@ void dump_config() {
     outf << "\n";
     outf << "[recon_params]\n";
     outf << "max_iters = 50\n";
-    outf << "lambda = 0.1\n";
-    outf << "mu = 5.0\n";
+    outf << "inner_iters = 5\n";
     outf << "tol = 1e-5\n";
     outf << "xtol = 1e-5\n";
     outf << "thickness = 21\n";
+    outf << "\n";
+    outf << "[recon_params.optimizer]\n";
+    outf << "method = \"split_bregman\"\n";
+    outf << "\n";
+    outf << "[recon_params.optimizer.split_bregman]\n";
+    outf << "lambda = 0.1\n";
+    outf << "mu = 5.0\n";
     outf.close();
 }
 
@@ -96,13 +106,33 @@ int main(int argc, char **argv) {
     fp.close();
 
     // get recon_params with defaults
+    opt::OptimizerConfig<float> opt_config;
     auto params = config["recon_params"].as_table();
-    size_t max_iter = params ? (*params)["max_iters"].value_or(50) : 50;
-    float lambda = params ? (*params)["lambda"].value_or(0.1f) : 0.1f;
-    float mu = params ? (*params)["mu"].value_or(5.0f) : 5.0f;
-    float tol = params ? (*params)["tol"].value_or(1e-5f) : 1e-5f;
-    float xtol = params ? (*params)["xtol"].value_or(1e-5f) : 1e-5f;
+    opt_config.outer_max = params ? (*params)["max_iters"].value_or(50) : 50;
+    opt_config.inner_max = params ? (*params)["inner_iters"].value_or(5) : 3;
+    opt_config.tol = params ? (*params)["tol"].value_or(1e-5f) : 1e-5f;
+    opt_config.xtol = params ? (*params)["xtol"].value_or(1e-5f) : 1e-5f;
     size_t thickness = (*params)["thickness"].value_or(21);
+
+    // parse optimizer type and parameters
+    auto optimizer = (*params)["optimizer"].as_table();
+    std::string method = (*optimizer)["method"].value_or("split_bregman");
+    if (method == "split_bregman") {
+        opt_config.method = opt::Optimizer::SPLIT_BREGMAN;
+        auto sb_params = (*optimizer)["split_bregman"].as_table();
+        opt_config.lambda = sb_params ? (*sb_params)["lambda"].value_or(0.1f) : 0.1f;
+        opt_config.mu = sb_params ? (*sb_params)["mu"].value_or(5.0f) : 5.0f;
+    } else if (method == "conjugate_gradient") {
+        opt_config.method = opt::Optimizer::CG_SOLVER;
+    } else if (method == "nag_optimizer") {
+        opt_config.method = opt::Optimizer::NAG_OPT;
+        auto nag_params = (*optimizer)["nag_optimizer"].as_table();
+        opt_config.sigma = nag_params ? (*nag_params)["sigma"].value_or(0.1f) : 0.1f;
+        opt_config.p = nag_params ? (*nag_params)["p"].value_or(1.2f) : 1.2f;
+    } else {
+        std::cerr << std::format("Error: Unsupported optimizer method '{}'\n", method);
+        return 1;
+    }
 
     // ensure angles are in radians
     auto max_angle = *std::max_element(angles.begin(), angles.end());
@@ -118,11 +148,17 @@ int main(int argc, char **argv) {
                              angles.size(), angles.front(), angles.back());
     std::cout << std::format("  Recon Dimensions: {} x {} x {}\n", thickness,
                              projs.nrows(), projs.ncols());
-    std::cout << std::format("  Max iterations: {}\n", max_iter);
-    std::cout << std::format("  \u03BB: {:.2f}\n", lambda);
-    std::cout << std::format("  \u03BC: {:.2f}\n", mu);
-    std::cout << std::format("  Tolerance: {:.2e}\n", tol);
-    std::cout << std::format("  X-tolerance: {:.2e}\n", xtol);
+    std::cout << std::format("  Max iterations: {}\n", opt_config.outer_max);
+    std::cout << std::format("  Optimization method: {}\n", method);
+    if (method == "nag_optimizer") {
+        std::cout << std::format("  \u03C3: {:.2e}\n", opt_config.sigma);
+        std::cout << std::format("  p: {:.2f}\n", opt_config.p);
+    } else if (method == "split_bregman") {
+        std::cout << std::format("  \u03BB: {:.2e}\n", opt_config.lambda);
+        std::cout << std::format("  \u03BC: {:.2e}\n", opt_config.mu);
+    }
+    std::cout << std::format("  Tolerance: {:.2e}\n", opt_config.tol);
+    std::cout << std::format("  X-tolerance: {:.2e}\n", opt_config.xtol);
 
     // set reconstruction dimensions
     tomocam::dims_t img_dims = {thickness, projs.nrows(), projs.ncols()};
@@ -130,7 +166,7 @@ int main(int argc, char **argv) {
     tomocam::Timer t0;
     t0.start();
     auto recon =
-        tomocam::MBIR(projs, angles, img_dims, max_iter, lambda, mu, tol, xtol);
+        tomocam::MBIR(projs, angles, img_dims, opt_config);
     t0.stop();
     std::cout << std::format("Reconstruction completed in {:.2f} seconds.\n",
                              t0.seconds());
