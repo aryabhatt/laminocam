@@ -18,14 +18,13 @@
  *---------------------------------------------------------------------------------
  */
 
-#ifndef OPTIMIZE__H
-#define OPTIMIZE__H
+#ifndef TOMOCAM_OPTIMIZE_H
+#define TOMOCAM_OPTIMIZE_H
 
 #include <cmath>
 #include <iostream>
 
 #include "array.h"
-#include "tomocam.h"
 
 namespace tomocam::opt {
 
@@ -35,7 +34,37 @@ namespace tomocam::opt {
     template <typename T>
     using Residual = std::function<T(const Array<T> &)>;
 
-    /** TODO: implement Split Bregman method for L1-regularized optimization problems
+    enum class Optimizer { SPLIT_BREGMAN, CG_SOLVER, NAG_OPT };
+
+    template <typename T>
+    struct OptimizerConfig {
+        Optimizer method;
+        // split bregman parameters
+        T lambda;
+        T mu;
+        // NAG + QGMRF parameters
+        T lipschitz;
+        T sigma;
+        T p;
+
+        // convergence parameters
+        T tol;
+        T xtol;
+        size_t outer_max;
+        size_t inner_max;
+
+        OptimizerConfig()
+            : method(Optimizer::SPLIT_BREGMAN), lambda(0.1), mu(5.0), outer_max(50),
+              inner_max(4), tol(1e-5), xtol(1e-5), lipschitz(1.0), sigma(1.e+3),
+              p(1.2) {}
+        OptimizerConfig(Optimizer meth, T lam, T m, size_t out_max, size_t in_max,
+                        T tol1, T tol2, T L, T sig, T param)
+            : method(meth), lambda(lam), mu(m), outer_max(out_max),
+              inner_max(in_max), tol(tol1), xtol(tol2), lipschitz(L), sigma(sig),
+              p(param) {}
+    };
+
+    /** Split Bregman method for L1-regularized optimization problems
      * @brief Split Bregman method for L1-regularized optimization problems
      * @param A Function representing the system matrix
      * @param y Right-hand side vector
@@ -49,9 +78,9 @@ namespace tomocam::opt {
      * @return Reconstructed solution vector
      */
     template <typename T>
-    Array<T> split_bregman(const Function<T> &A, const Array<T> &y, const Array<T> &x0,
-                           T lambda, T mu, size_t outer_max, size_t inner_max, T tol,
-                           T xtol);
+    Array<T> split_bregman(const Function<T> &A, const Array<T> &y,
+                           const Array<T> &x0, T lambda, T mu, size_t outer_max,
+                           size_t inner_max, T tol, T xtol);
 
     /**
      * @brief Conjugate Gradient Solver for linear systems
