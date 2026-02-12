@@ -1,0 +1,14 @@
+[input]
+filename = "/home/dkumar/data/shapiro/MCD/SimulatedData/projs/gamma45_XMCD_stack.tiff"
+angles = "/home/dkumar/data/shapiro/MCD/SimulatedData/projs/angles.txt"
+gamma = 0
+
+[output]
+filename = "XMCD/xmcd.tiff"
+
+[recon_params]
+max_iter = 50
+sigma = 100.0
+tol = 1e-5
+xtol = 1e-5
+thickness = 41
