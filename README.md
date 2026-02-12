@@ -67,6 +67,52 @@ cmake --build --preset macos
 
 ## Usage
 
+### Running Reconstruction
+
+The reconstruction tool uses a TOML configuration file to specify input data and parameters:
+
+```bash
+./build/recon <config.toml>
+```
+
+### TOML Configuration File
+
+Create a TOML file with the following structure:
+
+```toml
+[input]
+filename = "/path/to/projections.tif"  # Input TIFF file with projection data
+angles = "/path/to/angles.txt"          # Text file with projection angles
+
+[output]
+filename = "output.tiff"                # Output filename for reconstruction
+
+[recon_params]
+max_iters = 50                          # Maximum outer iterations
+inner_iters = 5                         # Inner iterations (for split_bregman, and line-serach in NAG)
+tol = 1e-5                              # Convergence tolerance
+xtol = 1e-5                             # X-tolerance for convergence
+thickness = 64                          # Reconstruction volume thickness
+
+[recon_params.optimizer]
+method = "split_bregman"                # Optimizer: "split_bregman", "conjugate_gradient", or "nag_optimizer"
+
+# Parameters for split_bregman method
+[recon_params.optimizer.split_bregman]
+lambda = 0.01                           # Regularization parameter
+mu = 10                                 # Penalty parameter
+
+# Parameters for nag_optimizer method (if using)
+# [recon_params.optimizer.nag_optimizer]
+# sigma = 0.1
+# p = 1.2
+```
+
+**Notes:**
+- Angles can be in degrees or radians (automatically converted)
+- The angles file should contain one angle per line
+- A template configuration file (`config_template.toml`) is generated automatically if no input is provided
+
 ### Basic Example
 
 ```cpp
