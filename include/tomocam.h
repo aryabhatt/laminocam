@@ -24,8 +24,8 @@
 #include <vector>
 
 #include "array.h"
+#include "config.h"
 #include "dtypes.h"
-#include "optimize.h"
 #include "polar_grid.h"
 #include "tiff.h"
 
@@ -124,13 +124,12 @@ namespace tomocam {
      * @param projections The input projection data as an Array.
      * @param theta std::vector containing the projection angles.
      * @param recon_dims Dimensions of the output reconstructed volume.
-     * @param opt_config Configuration parameters for the optimizer.
+     * @param params Configuration parameters for the optimizer.
      * @return The reconstructed volume data as an Array.
      */
     template <typename T>
-    Array<T> MBIR(const Array<T> &projections, const std::vector<T> &theta,
-                  const dims_t &recon_dims,
-                  const opt::OptimizerConfig<T> &opt_config);
+    Array<T> MBIR(const Array<T> &projections, const std::vector<T> &theta, T gamma,
+                  const dims_t &recon_dims, const ReconParams &params);
 
 } // namespace tomocam
 
