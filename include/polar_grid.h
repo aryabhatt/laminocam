@@ -42,7 +42,7 @@ namespace tomocam {
         [[nodiscard]] size_t size() const { return x.size(); }
 
         // constructor
-        PolarGrid(const std::vector<T> &theta, size_t nrows, size_t ncols) {
+        PolarGrid(const std::vector<T> &theta, T gamma, size_t nrows, size_t ncols) {
 
             dims_t dims = dims_t{theta.size(), nrows, ncols};
             x = Array<T>(dims);
@@ -51,35 +51,30 @@ namespace tomocam {
             npts = dims.size();
 
             // rotation matrix
-            T dz = (2 * M_PI) / static_cast<T>(nrows - 1);
-            T dr = (2 * M_PI) / static_cast<T>(ncols - 1);
+            T cos_gamma = std::cos(gamma);
+            T sin_gamma = std::sin(gamma);
+
+            // compute grid points
+            T dh = (2 * M_PI) / static_cast<T>(ncols - 1);
+            T dr = (2 * M_PI) / static_cast<T>(nrows - 1);
 
 #pragma omp parallel for collapse(3)
             for (size_t i = 0; i < dims.n1; ++i) {
                 for (size_t j = 0; j < dims.n2; ++j) {
                     for (size_t k = 0; k < dims.n3; ++k) {
                         T radius = j * dr - M_PI;
-                        y[{i, j, k}] = radius * std::cos(theta[i]);
-                        z[{i, j, k}] = radius * std::sin(theta[i]);
-                        x[{i, j, k}] = k * dz - M_PI;
+
+                        T xcrd = radius * std::cos(theta[i]);
+                        T ycrd = radius * std::sin(theta[i]);
+                        T zcrd = k * dh - M_PI;
+
+                        // apply rotation
+                        x[{i, j, k}] = zcrd * cos_gamma - xcrd * sin_gamma;
+                        y[{i, j, k}] = ycrd;
+                        z[{i, j, k}] = zcrd * sin_gamma + xcrd * cos_gamma;
                     }
                 }
             }
-        }
-
-        PolarGrid<T> rotate(T angle) const {
-
-            PolarGrid<T> out = *this;
-
-            T cos_t = std::cos(angle);
-            T sin_t = std::sin(angle);
-
-            auto dims = this->dims();
-            for (size_t i = 0; i < x.size(); i++) {
-                out.x[i] = x[i] * cos_t - y[i] * sin_t;
-                out.y[i] = x[i] * sin_t + y[i] * cos_t;
-            }
-            return out;
         }
     };
 
