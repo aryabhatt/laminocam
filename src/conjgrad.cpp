@@ -26,6 +26,7 @@
 #include "array.h"
 #include "array_ops.h"
 #include "optimize.h"
+#include "precond.h"
 
 namespace tomocam::opt {
     template <typename T>
@@ -35,8 +36,11 @@ namespace tomocam::opt {
         // initialize
         auto x = x0.clone();
         auto r = yT - A(x);
-        auto p = r.clone();
-        auto rs_old = array::dot(r, r);
+        
+        auto precond = RampPreconditioner<T>(x0.dims());
+        auto z = precond.apply(r);
+        auto p = z.clone();
+        auto rs_old = array::dot(z, r);
 
         for (size_t iter = 0; iter < max_iter; iter++) {
 
@@ -50,12 +54,13 @@ namespace tomocam::opt {
             x += p * alpha;
             r -= Ap * alpha;
 
-            auto rs_new = array::dot(r, r);
+            z = precond.apply(r);
+            auto rs_new = array::dot(z, r);
             std::cout << std::format("\t CG Iter: {}, residual: {}\n", iter,
                                      std::sqrt(rs_new));
-            if (rs_new < tol * tol) { break; }
+            if (std::sqrt(rs_new) < tol) { break; }
 
-            p = r + (p * (rs_new / rs_old));
+            p = z + (p * (rs_new / rs_old));
             rs_old = rs_new;
         }
         return x;
