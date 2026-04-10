@@ -24,7 +24,7 @@
 #include <tuple>
 
 #ifndef DTYPES__H
-    #define DTYPES__H
+#define DTYPES__H
 
 namespace tomocam {
 
