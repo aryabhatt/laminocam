@@ -45,7 +45,6 @@ endif(OpenMP_FOUND)
 # tbb
 find_package(TBB REQUIRED)
 find_package(FFTW REQUIRED)
-find_package(HDF5 REQUIRED COMPONENTS CXX)
 find_package(TIFF REQUIRED)
 
 # toml++
@@ -56,6 +55,7 @@ FetchContent_Declare(
     GIT_TAG        v3.4.0
 )
 FetchContent_MakeAvailable(tomlplusplus)
+include_directories(${tomlplusplus_SOURCE_DIR}/include)
 
 # finufft
 find_package(finufft REQUIRED)
