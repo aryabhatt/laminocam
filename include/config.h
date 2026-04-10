@@ -154,6 +154,7 @@ namespace tomocam {
         float tol = 1e-5f;         // Tolerance for convergence
         float xtol = 1e-5f;        // Tolerance for solution change
         float PAD_FACTOR = 1.4142; // sqrt(2) padding factor
+        bool maskSupport = true;   // Whether to apply support mask
 
         ReconParams() = default;
         ReconParams(const toml::table &config) {
@@ -195,11 +196,11 @@ namespace tomocam {
                           static_cast<float>(recon_dims[2]);
             if (ratio > 0.15f) {
                 std::cerr << std::format(
-                    "Warning: recon_dims[0] / recon_dims[2] = {:.2f} > 0.15. "
-                    "In laminography, the thickness (recon_dims[0]) "
+                    "\033[31mWarning\033[0m: recon_dims[0] / recon_dims[2] = "
+                    "{:.2f} > 0.15.\n"
+                    "laminography thickness (recon_dims[0]) "
                     "is expected to be much smaller than the in-plane "
-                    "dimensions (recon_dims[1], recon_dims[2]). "
-                    "This may lead to increased memory usage.\n",
+                    "dimensions (recon_dims[1], recon_dims[2]).\n",
                     ratio);
             }
             tol = (*recon)["tol"].value_or<float>(1e-5f);
