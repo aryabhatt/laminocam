@@ -21,7 +21,7 @@ int main() {
     std::vector<float> theta(ntheta, 0.0f);
     for (size_t i = 0; i < ntheta; i++) { theta[i] = (i - 70.f) * M_PI / 180.f; }
 
-    auto pg = PolarGrid(theta, dims.n2, dims.n3);
+    auto pg = PolarGrid<float>(theta, 0, dims.n2, dims.n3);
     auto y = Array<float>::random_like(pg.x.dims());
     auto yTy = array::dot(y, y);
 

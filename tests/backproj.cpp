@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
     t0.start();
     auto nrows = projs2.nrows();
     auto ncols = projs2.ncols();
-    tomocam::PolarGrid<float> pgrid(theta, nrows, ncols);
+    tomocam::PolarGrid<float> pgrid(theta, 0, nrows, ncols);
     t0.stop();
     std::cerr << std::format("Polar grid size: ({}, {})\n", nrows, ncols);
 

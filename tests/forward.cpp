@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
     // oversample polar-grid
     auto nrows = sample2.nrows();
     auto ncols = sample2.ncols();
-    tomocam::PolarGrid<float> pgrid(theta, nrows, ncols);
+    tomocam::PolarGrid<float> pgrid(theta, 0, nrows, ncols);
     t0.stop();
     std::cerr << "Time to build a polar grid: " << t0.seconds() << "(s)\n";
 

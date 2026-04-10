@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "array.h"
+#include "optimize.h"
 #include "tiff.h"
 #include "tomocam.h"
 
@@ -28,12 +29,14 @@ int main(int argc, char **argv) {
     for (size_t i = 0; i < N; i++) { b[{0, 0, i}] = diagMat[i] * x_true[{0, 0, i}]; }
 
     // Conjugate Gradient solver for diagonal matrix
-    std::function<tomocam::Array<float>(const tomocam::Array<float> &)> A = 
+    std::function<tomocam::Array<float>(const tomocam::Array<float> &)> A =
         [&](const tomocam::Array<float> &v) {
-        tomocam::Array<float> Av(dims);
-        for (size_t i = 0; i < N; i++) { Av[{0, 0, i}] = diagMat[i] * v[{0, 0, i}]; }
-        return Av;
-    };
+            tomocam::Array<float> Av(dims);
+            for (size_t i = 0; i < N; i++) {
+                Av[{0, 0, i}] = diagMat[i] * v[{0, 0, i}];
+            }
+            return Av;
+        };
 
     // call CG solver
     // initialize guess
