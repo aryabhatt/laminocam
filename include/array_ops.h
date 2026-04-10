@@ -27,7 +27,7 @@
 #include "array.h"
 
 #ifndef ARRAY_OPS__H
-    #define ARRAY_OPS__H
+#define ARRAY_OPS__H
 
 namespace tomocam::array {
 
@@ -79,6 +79,29 @@ namespace tomocam::array {
         return std::transform_reduce(std::execution::par_unseq, a.begin(), a.end(),
                                      b.begin(), T(0), std::plus<T>(),
                                      [](T x, T y) { return x * y; });
+    }
+    // Transpose the array a according to the given axes.
+    template <typename T>
+    Array<T> transpose(const Array<T> &a, std::array<size_t, 3> axes) {
+
+        // if axes is {0, 1, 2}, return a copy
+        if (axes == std::array<size_t, 3>{0, 1, 2}) { return a.clone(); }
+
+        dims_t dims = a.dims();
+        std::array<size_t, 3> dims_arr = {dims.n1, dims.n2, dims.n3};
+        dims_t new_dims = {dims_arr[axes[0]], dims_arr[axes[1]], dims_arr[axes[2]]};
+        Array<T> b(new_dims);
+#pragma omp parallel for collapse(3)
+        for (size_t i = 0; i < dims.n1; ++i) {
+            for (size_t j = 0; j < dims.n2; ++j) {
+                for (size_t k = 0; k < dims.n3; ++k) {
+                    size_t idx1[3] = {i, j, k};
+                    dims_t idx2 = {idx1[axes[0]], idx1[axes[1]], idx1[axes[2]]};
+                    b[idx2] = a[{i, j, k}];
+                }
+            }
+        }
+        return b;
     }
 
 } // namespace tomocam::array
