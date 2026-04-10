@@ -1,6 +1,5 @@
 #!/bin/bash
-header="// clang-format off
-/* -------------------------------------------------------------------------------
+header="/* -------------------------------------------------------------------------------
  * Tomocam Copyright (c) 2018
  *
  * The Regents of the University of California, through Lawrence Berkeley
@@ -18,8 +17,7 @@ header="// clang-format off
  * to reproduce, distribute copies to the public, prepare derivative works, and
  * perform publicly and display publicly, and to permit other to do so.
  *---------------------------------------------------------------------------------
- */
- //clang-format on"
+ */"
 
 copyright='Tomocam Copyright (c) 2018'
 
