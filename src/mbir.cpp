@@ -24,6 +24,7 @@
 
 #include "array.h"
 #include "array_ops.h"
+#include "config.h"
 #include "optimize.h"
 #include "padding.h"
 #include "polar_grid.h"
@@ -31,8 +32,8 @@
 
 namespace tomocam {
     template <typename T>
-    Array<T> MBIR(const Array<T> &projs, const std::vector<T> &angles,
-                  const dims_t &recon_dims, const opt::OptimizerConfig<T> &optcfg) {
+    Array<T> MBIR(const Array<T> &projs, const std::vector<T> &angles, T gamma,
+                  const dims_t &recon_dims, const ReconParams &params) {
 
         // normalize projections
         T proj_max = array::max(projs);
@@ -61,7 +62,7 @@ namespace tomocam {
         // setup polar grid
         size_t nrows = y.nrows();
         size_t ncols = y.ncols();
-        auto polar_grid = PolarGrid<T>(angles, nrows, ncols);
+        auto polar_grid = PolarGrid<T>(angles, gamma, nrows, ncols);
 
         // precompute backprojection of the projections
         auto yT = backproj(y, polar_grid, out_dims);
@@ -70,40 +71,24 @@ namespace tomocam {
         auto x0 = fbp(y, polar_grid, out_dims);
 
         // run optimization
-        switch (optcfg.method) {
-            case opt::Optimizer::CG_SOLVER: {
-                std::cout << std::format("Starting MBIR with CG optimization...\n");
+        switch (params.regularizer) {
+            case Regularizer::UNCONSTRAINED: {
+                std::cout << "Starting unconstrained iterative reconstruction with "
+                             "CG ...\n";
                 opt::Function<T> ATA = [&](const Array<T> &x) {
-                    return sysmat(x, polar_grid);
+                    return sysmat<T>(x, polar_grid);
                 };
-                recon = opt::cgsolver(ATA, yT, x0, optcfg.outer_max, optcfg.tol);
+                recon = opt::cgsolver<T>(ATA, yT, x0, params.maxIters, params.tol);
                 break;
             }
-            case opt::Optimizer::NAG_OPT: {
-                std::cout << std::format("Starting MBIR with NAG optimization...\n");
-                opt::Function<T> gradient = [&](const Array<T> &x) {
-                    auto dx = sysmat(x, polar_grid) - yT;
-                    opt::qggmrf(x, dx, optcfg.sigma, optcfg.p);
-                    return dx;
-                };
-                opt::Residual<T> lossfn = [&](const Array<T> &x) {
-                    auto tmp = forward(x, polar_grid) - y;
-                    return std::sqrt(array::dot(tmp, tmp));
-                };
-                recon = opt::nagopt(gradient, lossfn, x0, optcfg.outer_max,
-                                    optcfg.lipschitz, optcfg.tol, optcfg.xtol,
-                                    optcfg.inner_max);
-                break;
-            }
-            case opt::Optimizer::SPLIT_BREGMAN: {
-                std::cout << std::format(
-                    "Starting MBIR with Split Bregman optimization...\n");
+            case Regularizer::SPLIT_BREGMAN: {
+                std::cout << "Starting MBIR with Split-Bregman method ...\n";
                 opt::Function<T> ATA = [&](const Array<T> &x) {
-                    return sysmat(x, polar_grid);
+                    return sysmat<T>(x, polar_grid);
                 };
-                recon = opt::split_bregman(ATA, yT, x0, optcfg.lambda, optcfg.mu,
-                                           optcfg.outer_max, optcfg.inner_max,
-                                           optcfg.tol, optcfg.xtol);
+                recon = opt::split_bregman<T>(ATA, yT, x0, params.lambda, params.mu,
+                                              params.maxIters, params.innerIters,
+                                              params.tol, params.xtol);
                 break;
             }
             default: throw std::invalid_argument("Unsupported optimizer type");
@@ -115,12 +100,12 @@ namespace tomocam {
 
     // explicit template instantiation
     template Array<float> MBIR<float>(const Array<float> &projs,
-                                      const std::vector<float> &angles,
+                                      const std::vector<float> &angles, float gamma,
                                       const dims_t &recon_dims,
-                                      const opt::OptimizerConfig<float> &optcfg);
+                                      const ReconParams &cfg);
     template Array<double> MBIR<double>(const Array<double> &projs,
                                         const std::vector<double> &angles,
-                                        const dims_t &recon_dims,
-                                        const opt::OptimizerConfig<double> &optcfg);
+                                        double gamma, const dims_t &recon_dims,
+                                        const ReconParams &cfg);
 
 } // namespace tomocam
