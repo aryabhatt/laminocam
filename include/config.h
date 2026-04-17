@@ -33,6 +33,7 @@
 #include <vector>
 
 #include "array.h"
+#include "mask.h"
 #include "tiff.h"
 
 namespace tomocam {
@@ -130,6 +131,7 @@ namespace tomocam {
             }
 
             auto projs = tomocam::tiff::read(*filename);
+            projs = tomocam::mask_infs_nans(projs);
             auto angles = read_angles_file<T>(*angles_file);
             auto gamma_rad = *gamma * M_PI / (T)180.0; // convert to radians
             datasets.push_back(
@@ -154,7 +156,6 @@ namespace tomocam {
         float tol = 1e-5f;         // Tolerance for convergence
         float xtol = 1e-5f;        // Tolerance for solution change
         float PAD_FACTOR = 1.4142; // sqrt(2) padding factor
-        bool maskSupport = true;   // Whether to apply support mask
 
         ReconParams() = default;
         ReconParams(const toml::table &config) {
