@@ -22,6 +22,8 @@
 #include <format>
 #include <functional>
 #include <iostream>
+#include <limits>
+#include <random>
 
 #include "array.h"
 #include "array_ops.h"
@@ -36,9 +38,20 @@ namespace tomocam::opt {
         // initialize
         auto x = x0.clone();
         auto r = yT - A(x);
-        
-        auto precond = RampPreconditioner<T>(x0.dims());
-        auto z = precond.apply(r);
+
+        // diagnoal preconditioner
+        auto ones = Array<T>::like(x, (T)1);
+        auto pre = A(ones);
+        for (size_t i = 0; i < pre.size(); i++) {
+            if (std::abs(pre[i]) < 1.2E-07) {
+                std::cerr << "preconditioner is close to zero\n";
+                pre[i] = 1.0E-06;
+            }
+        }
+        // turn off for now
+        auto precond_apply = [&pre](const Array<T> &r) { return r.clone(); };
+
+        auto z = precond_apply(r);
         auto p = z.clone();
         auto rs_old = array::dot(z, r);
 
@@ -54,14 +67,15 @@ namespace tomocam::opt {
             x += p * alpha;
             r -= Ap * alpha;
 
-            z = precond.apply(r);
+            z = precond_apply(r);
             auto rs_new = array::dot(z, r);
-            std::cout << std::format("\t CG Iter: {}, residual: {}\n", iter,
-                                     std::sqrt(rs_new));
-            if (std::sqrt(rs_new) < tol) { break; }
-
             p = z + (p * (rs_new / rs_old));
             rs_old = rs_new;
+
+            // calculate and print the residual
+            auto res = std::sqrt(array::dot(r, r));
+            std::cout << std::format("\t CG Iter: {}, residual: {}\n", iter, res);
+            if (std::sqrt(res) < tol) { break; }
         }
         return x;
     }

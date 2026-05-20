@@ -1,0 +1,6 @@
+/home/dkumar/XMCD/scalar/build/CMakeFiles/tomocam.dir
+/home/dkumar/XMCD/scalar/build/CMakeFiles/recon.dir
+/home/dkumar/XMCD/scalar/build/CMakeFiles/edit_cache.dir
+/home/dkumar/XMCD/scalar/build/CMakeFiles/rebuild_cache.dir
+/home/dkumar/XMCD/scalar/build/_deps/tomlplusplus-build/CMakeFiles/edit_cache.dir
+/home/dkumar/XMCD/scalar/build/_deps/tomlplusplus-build/CMakeFiles/rebuild_cache.dir

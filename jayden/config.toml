@@ -1,0 +1,32 @@
+[[input]]
+filename = "/global/cfs/cdirs/m4055/dkumar/data/shapiro/MagneticVectorTomo/SimulatedData/Projections/gamma0_XMCD_stack.tiff"
+angles = "/global/cfs/cdirs/m4055/dkumar/data/shapiro/MagneticVectorTomo/SimulatedData/Projections/angles.txt"
+gamma = 0
+
+[[input]]
+filename = "/global/cfs/cdirs/m4055/dkumar/data/shapiro/MagneticVectorTomo/SimulatedData/Projections/gamma45_XMCD_stack.tiff"
+angles = "/global/cfs/cdirs/m4055/dkumar/data/shapiro/MagneticVectorTomo/SimulatedData/Projections/angles.txt"
+gamma = -45
+
+[[input]]
+filename = "/global/cfs/cdirs/m4055/dkumar/data/shapiro/MagneticVectorTomo/SimulatedData/Projections/gamma-45_XMCD_stack.tiff"
+angles = "/global/cfs/cdirs/m4055/dkumar/data/shapiro/MagneticVectorTomo/SimulatedData/Projections/angles.txt"
+gamma = 45
+
+[output]
+filename = "jayden/recon.tiff"
+formats = ["tiff", "vti"] 
+
+[recon_params]
+max_iters =100
+tol = 1e-5
+xtol = 1e-5
+recon_dims = [19, 239, 239]
+
+[recon_params.regularizer]
+method = "split_bragman"
+
+[recon_params.regularizer.split_bragman]
+inner_iters = 1
+lambda = 0.5
+mu = 10

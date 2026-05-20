@@ -52,7 +52,8 @@ int main(int argc, char **argv) {
     auto output = tomocam::OutputParams(config);
 
     // set reconstruction dimensions
-    dims_t recon_dims = {params.recon_dims[2], params.recon_dims[0], params.recon_dims[1]};
+    dims_t recon_dims = params.recon_dims;
+
     params.print(std::cout);
     // flush the output
     std::cout << std::endl;
@@ -70,9 +71,6 @@ int main(int argc, char **argv) {
     t0.stop();
     std::cout << std::format("Reconstruction completed in {:.2f} seconds.\n",
                              t0.seconds());
-
-    // transpose the reconstruction to match the input dimensions
-    recon = array::transpose(recon, {1, 2, 0});
 
     auto base_dir = std::filesystem::path(output.filepath).parent_path();
     if (!std::filesystem::exists(base_dir)) {

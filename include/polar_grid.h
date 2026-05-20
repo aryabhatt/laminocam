@@ -41,6 +41,9 @@ namespace tomocam {
         // size of the array
         [[nodiscard]] size_t size() const { return x.size(); }
 
+        // default constructor
+        PolarGrid() : npts(0) {}
+
         // constructor
         PolarGrid(const std::vector<T> &theta, T gamma, size_t nrows, size_t ncols) {
 
@@ -55,23 +58,26 @@ namespace tomocam {
             T sin_gamma = std::sin(gamma);
 
             // compute grid points
-            T dh = (2 * M_PI) / static_cast<T>(ncols - 1);
-            T dr = (2 * M_PI) / static_cast<T>(nrows - 1);
+            T dX = (2 * M_PI) / static_cast<T>(ncols);
+            T dY = (2 * M_PI) / static_cast<T>(nrows);
 
 #pragma omp parallel for collapse(3)
             for (size_t i = 0; i < dims.n1; ++i) {
                 for (size_t j = 0; j < dims.n2; ++j) {
                     for (size_t k = 0; k < dims.n3; ++k) {
-                        T radius = j * dr - M_PI;
 
-                        T xcrd = radius * std::cos(theta[i]);
-                        T ycrd = radius * std::sin(theta[i]);
-                        T zcrd = k * dh - M_PI;
+                        // q-grid on detector plane
+                        T qX = (k + 0.5) * dX - M_PI;
+                        T qY = (j + 0.5) * dY - M_PI;
 
-                        // apply rotation
-                        x[{i, j, k}] = zcrd * cos_gamma - xcrd * sin_gamma;
-                        y[{i, j, k}] = ycrd;
-                        z[{i, j, k}] = zcrd * sin_gamma + xcrd * cos_gamma;
+                        // apply gamma rotation in X-Y plane
+                        T qX_g = qX * cos_gamma - qY * sin_gamma;
+                        T qY_g = qX * sin_gamma + qY * cos_gamma;
+
+                        // apply theta rotation in Y-Z plane
+                        x[{i, j, k}] = qX_g;
+                        y[{i, j, k}] = std::cos(theta[i]) * qY_g;
+                        z[{i, j, k}] = std::sin(theta[i]) * qY_g;
                     }
                 }
             }

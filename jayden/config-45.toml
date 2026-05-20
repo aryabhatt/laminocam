@@ -1,0 +1,23 @@
+[[input]]
+filename = "/home/dkumar/data/shapiro/MCD/SimulatedData/Projections2/gamma-45_CC_stack.tiff"
+angles = "/home/dkumar/data/shapiro/MCD/SimulatedData/Projections2/angles.txt"
+gamma = -45
+
+[output]
+filename = "jayden/recon-45.tiff"
+formats = ["tiff", "vti"] 
+
+[recon_params]
+max_iters =100
+tol = 1e-5
+xtol = 1e-5
+recon_dims = [21, 239, 239]
+
+[recon_params.regularizer]
+method = "split_bregman"
+
+[recon_params.regularizer.split_bregman]
+inner_iters = 1
+lambda = 0.5
+mu = 10
+

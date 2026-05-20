@@ -1,0 +1,13 @@
+[[input]]
+filename = "/home/dkumar/data/emma/665/Gamma0/aligned_CC_665_Gamma0.tiff"
+angles = "/home/dkumar/data/emma/665/Gamma0/angles_shifted_665_Gamma0.txt"
+gamma = 0
+
+[output]
+filename = "emma/665/cg/recon0.tiff"
+
+[recon_params]
+max_iters = 50
+tol = 1e-5
+xtol = 1e-5
+recon_dims = [21, 511, 511]
