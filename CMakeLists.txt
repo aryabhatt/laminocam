@@ -59,22 +59,23 @@ include_directories(${tomlplusplus_SOURCE_DIR}/include)
 
 # finufft
 find_package(finufft REQUIRED)
-add_library(tomocam SHARED ${SRC})
-target_link_libraries(tomocam PUBLIC FFTW::double)
-target_link_libraries(tomocam PUBLIC FFTW::float)
-target_link_libraries(tomocam PUBLIC finufft::finufft)
-target_link_libraries(tomocam PUBLIC TBB::tbb)
-target_link_libraries(tomocam PUBLIC TIFF::TIFF)
-set_property(TARGET tomocam PROPERTY CXX_STANDARD 20)
+add_library(tomocam_scalar SHARED ${SRC})
+target_link_libraries(tomocam_scalar PUBLIC FFTW::double)
+target_link_libraries(tomocam_scalar PUBLIC FFTW::float)
+target_link_libraries(tomocam_scalar PUBLIC finufft::finufft)
+target_link_libraries(tomocam_scalar PUBLIC TBB::tbb)
+target_link_libraries(tomocam_scalar PUBLIC TIFF::TIFF)
+set_property(TARGET tomocam_scalar PROPERTY CXX_STANDARD 20)
 
 # recon executable
-add_executable(recon src/recon.cpp)
-target_link_libraries(recon PRIVATE tomocam tomlplusplus::tomlplusplus)
+add_executable(recon_scalar src/recon.cpp)
+target_link_libraries(recon_scalar PRIVATE tomocam_scalar tomlplusplus::tomlplusplus)
 
-
+install(TARGETS recon_scalar DESTINATION bin)
+install(TARGETS tomocam_scalar DESTINATION lib)
 option(ENABLE_TESTS "Enable tests" OFF)
+
 if (${ENABLE_TESTS})
-    find_package(nlohmann_json REQUIRED)
     enable_testing()
     add_subdirectory(tests)
 endif()
