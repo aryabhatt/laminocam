@@ -53,10 +53,6 @@ namespace tomocam {
             z = Array<T>(dims);
             npts = dims.size();
 
-            // rotation matrix
-            T cos_gamma = std::cos(gamma);
-            T sin_gamma = std::sin(gamma);
-
             // compute grid points
             T dX = (2 * M_PI) / static_cast<T>(ncols);
             T dY = (2 * M_PI) / static_cast<T>(nrows);
@@ -66,18 +62,14 @@ namespace tomocam {
                 for (size_t j = 0; j < dims.n2; ++j) {
                     for (size_t k = 0; k < dims.n3; ++k) {
 
-                        // q-grid on detector plane
                         T qX = (k + 0.5) * dX - M_PI;
                         T qY = (j + 0.5) * dY - M_PI;
 
-                        // apply gamma rotation in X-Y plane
-                        T qX_g = qX * cos_gamma - qY * sin_gamma;
-                        T qY_g = qX * sin_gamma + qY * cos_gamma;
-
-                        // apply theta rotation in Y-Z plane
-                        x[{i, j, k}] = qX_g;
-                        y[{i, j, k}] = std::cos(theta[i]) * qY_g;
-                        z[{i, j, k}] = std::sin(theta[i]) * qY_g;
+                        x[{i, j, k}] = qX * std::cos(gamma) -
+                                       qY * std::sin(gamma) * std::cos(theta[i]);
+                        y[{i, j, k}] = qX * std::sin(gamma) +
+                                       qY * std::cos(gamma) * std::cos(theta[i]);
+                        z[{i, j, k}] = qY * std::sin(theta[i]);
                     }
                 }
             }
