@@ -140,7 +140,7 @@ namespace tomocam {
         return datasets;
     }
 
-    enum class Regularizer { qGGMRF, SPLIT_BREGMAN, UNCONSTRAINED };
+    enum class Regularizer { SPLIT_BREGMAN, UNCONSTRAINED };
 
     // Reconstruction parameters
     struct ReconParams {
@@ -149,8 +149,6 @@ namespace tomocam {
         std::array<size_t, 3> recon_dims = {0, 0, 0}; // Reconstruction dimensions
         size_t maxIters = 50;                         // Maximum number of iterations
         size_t innerIters = 3;     // Number of inner iterations for Split-Bregman
-        float sigma = 1000.0f;     // Regularization parameter (qGGMRF)
-        float p = 1.2f;            // qGGMRF parameter p
         float lambda = 0.1f;       // Regularization weight (Split-Bregman)
         float mu = 10.0f;          // Augmented Lagrangian parameter (Split-Bregman)
         float tol = 1e-5f;         // Tolerance for convergence
@@ -213,17 +211,7 @@ namespace tomocam {
                 if (reg) {
                     auto reg_str =
                         (*reg)["method"].value_or<std::string>("split_bregman");
-                    if (reg_str == "qGGMRF") {
-                        regularizer = Regularizer::qGGMRF;
-                        auto params = (*reg)["qGGMRF"].as_table();
-                        if (!params) {
-                            throw std::runtime_error(
-                                "Missing [recon_params.regularizer.qGGMRF] section "
-                                "in config file");
-                        }
-                        sigma = (*params)["sigma"].value_or<float>(1000.0f);
-                        p = (*params)["p"].value_or<float>(1.2f);
-                    } else if (reg_str == "split_bregman") {
+                    if (reg_str == "split_bregman") {
                         regularizer = Regularizer::SPLIT_BREGMAN;
                         auto params = (*reg)["split_bregman"].as_table();
                         if (!params) {
@@ -237,8 +225,7 @@ namespace tomocam {
                         innerIters = (*params)["inner_iters"].value_or<size_t>(3);
                     } else {
                         throw std::runtime_error(
-                            "[recon_params] 'regularizer' must be "
-                            "either 'qGGMRF' or 'split_bregman'");
+                            "[recon_params] 'regularizer' must be 'split_bregman'");
                     }
                 }
             }
@@ -246,12 +233,9 @@ namespace tomocam {
 
         void print(std::ostream &os) const {
 
-            std::string reg_str;
-            switch (regularizer) {
-                case Regularizer::qGGMRF: reg_str = "qGGMRF"; break;
-                case Regularizer::SPLIT_BREGMAN: reg_str = "Split-Bregman"; break;
-                default: reg_str = "Unconstrained"; break;
-            }
+            std::string reg_str = (regularizer == Regularizer::SPLIT_BREGMAN)
+                                      ? "Split-Bregman"
+                                      : "Unconstrained";
             os << "Reconstruction Parameters:\n";
             os << "  max_outer_iters: " << maxIters << "\n";
             os << std::format("  recon_dims: [{}, {}, {}]\n", recon_dims[0],
@@ -259,10 +243,7 @@ namespace tomocam {
             os << "  tol: " << tol << "\n";
             os << "  xtol: " << xtol << "\n";
             os << "  regularizer: " << reg_str << "\n";
-            if (regularizer == Regularizer::qGGMRF) {
-                os << "    sigma: " << sigma << "\n";
-                os << "    p: " << p << "\n";
-            } else if (regularizer == Regularizer::SPLIT_BREGMAN) {
+            if (regularizer == Regularizer::SPLIT_BREGMAN) {
                 os << "    inner_iters: " << innerIters << "\n";
                 os << "    lambda: " << lambda << "\n";
                 os << "    mu: " << mu << "\n";
@@ -330,10 +311,16 @@ namespace tomocam {
                 std::format("Could not open file for writing: {}", filepath));
         }
 
-        outfile << "[input]\n";
+        outfile << "[[input]]\n";
         outfile << "filename = \"/path/to/projections.tiff\"\n";
         outfile << "angles = \"/path/to/angles.txt\"\n";
         outfile << "gamma = 0\n";
+        outfile << "\n";
+        outfile << "# add more [[input]] sections for additional datasets\n";
+        outfile << "# [[input]]\n";
+        outfile << "# filename = \"/path/to/projections2.tiff\"\n";
+        outfile << "# angles = \"/path/to/angles.txt\"\n";
+        outfile << "# gamma = 45\n";
         outfile << "\n";
         outfile << "[output]\n";
         outfile << "filename = \"output.tiff\"\n";
@@ -352,12 +339,6 @@ namespace tomocam {
         outfile << "lambda = 0.1\n";
         outfile << "mu = 10.0\n";
         outfile << "\n";
-        outfile << "# alternatively, for qGGMRF regularization:\n";
-        outfile << "# [recon_params.regularizer]\n";
-        outfile << "# method = \"qGGMRF\"\n";
-        outfile << "# [recon_params.regularizer.qGGMRF]\n";
-        outfile << "# sigma = 1000.0\n";
-        outfile << "# p = 1.2\n";
         outfile.close();
     }
 } // namespace tomocam
