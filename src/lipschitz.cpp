@@ -29,7 +29,7 @@
 namespace tomocam::opt {
     template <typename T>
     T lipschitz(const Function<T> &A, const Array<T> &ref, size_t max_iter, T tol) {
-        Array<T> x = Array<T>::random_like(ref);
+        Array<T> x = Array<T>::random(ref.dims());
         x = x / array::norm2(x);
         T L = 0;
         for (int i = 0; i < max_iter; ++i) {
