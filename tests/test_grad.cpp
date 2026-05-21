@@ -14,7 +14,7 @@ int main() {
     // Define random f
     dims_t dims = {21, 511, 511};
     Array<float> f = Array<float>(dims);
-    f = Array<float>::random_like(f);
+    f = Array<float>::random(f.dims());
 
     // Define theta
     size_t ntheta = 141;
@@ -33,7 +33,7 @@ int main() {
     std::cout << std::format("Direct method time: {:.3f} s\n", timer.seconds());
 
     // Ajdoint method
-    auto yT = Array<float>::zeros_like(fwd);
+    auto yT = Array<float>::zeros(fwd.dims());
     timer.start();
     auto grad_adj = gradient(f, yT, pg);
     timer.stop();
