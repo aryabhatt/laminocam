@@ -21,6 +21,7 @@
 #include <format>
 #include <functional>
 #include <iostream>
+#include <vector>
 
 #include "array.h"
 #include "array_ops.h"
@@ -32,60 +33,76 @@
 
 namespace tomocam {
     template <typename T>
-    Array<T> MBIR(const Array<T> &projs, const std::vector<T> &angles, T gamma,
+    Array<T> MBIR(const std::vector<Dataset_t<T>> &datasets,
                   const dims_t &recon_dims, const ReconParams &params) {
 
-        // normalize projections
-        T proj_max = array::max(projs);
-        auto y = projs / proj_max;
+        // zero-pad reconstruction dimensions by sqrt(2) to avoid aliasing
+        T padding = static_cast<T>(params.PAD_FACTOR);
+        auto pad = [padding](size_t n) {
+            size_t npad = 2 * (static_cast<size_t>(n * (padding - 1)) / 2);
+            return n + npad;
+        };
 
-        // zero-pad projections by sqrt(2) to avoid aliasing
-        T padding = static_cast<T>(1.42);
-        y = pad2d(y, padding, PadType::SYMMETRIC);
-
-        // adjust reconstruction dimensions
         dims_t out_dims = recon_dims;
-        out_dims.n1 = static_cast<size_t>(recon_dims.n1 * padding);
-        if (out_dims.n1 % 2 == 0) {
-            out_dims.n1 -= 1; // make sure n1 is odd
+        out_dims.n1 = pad(recon_dims.n1);
+        out_dims.n2 = pad(recon_dims.n2);
+        out_dims.n3 = pad(recon_dims.n3);
+
+        std::cout << std::format(
+            "Reconstruction dimensions (with padding): {} x {} x {}\n",
+            out_dims.n1, out_dims.n2, out_dims.n3);
+
+        // accumulate backprojections across all datasets
+        size_t n_datasets = datasets.size();
+        auto yT = Array<T>::zeros(out_dims);
+        std::vector<PolarGrid<T>> polar_grids(n_datasets);
+
+        for (size_t j = 0; j < n_datasets; ++j) {
+            auto &[proj, angles, gamma] = datasets[j];
+
+            // normalize projections
+            T proj_max = array::max(proj);
+            auto y = proj / proj_max;
+
+            // zero-pad projections by sqrt(2) to avoid aliasing
+            y = pad2d(y, padding, PadType::SYMMETRIC);
+
+            // setup polar grid (gamma already encoded in grid)
+            size_t nrows = y.nrows();
+            size_t ncols = y.ncols();
+            polar_grids[j] = PolarGrid<T>(angles, gamma, nrows, ncols);
+
+            // accumulate backprojection
+            yT += backproj(y, polar_grids[j], out_dims);
         }
 
-        out_dims.n2 = static_cast<size_t>(recon_dims.n2 * padding);
-        if (out_dims.n2 % 2 == 0) {
-            out_dims.n2 -= 1; // make sure n2 is odd
-        }
-        out_dims.n3 = static_cast<size_t>(recon_dims.n3 * padding);
-        if (out_dims.n3 % 2 == 0) {
-            out_dims.n3 -= 1; // make sure n3 is odd
-        }
+        // build system operator that sums over all datasets
+        opt::Function<T> ATA = [&polar_grids](const Array<T> &x) {
+            auto Ax = sysmat<T>(x, polar_grids[0]);
+            for (size_t j = 1; j < polar_grids.size(); ++j) {
+                Ax += sysmat<T>(x, polar_grids[j]);
+            }
+            return Ax;
+        };
 
-        // setup polar grid
-        size_t nrows = y.nrows();
-        size_t ncols = y.ncols();
-        auto polar_grid = PolarGrid<T>(angles, gamma, nrows, ncols);
-
-        // precompute backprojection of the projections
-        auto yT = backproj(y, polar_grid, out_dims);
+        // initial guess: FBP from first dataset
+        auto &[proj0, angles0, gamma0] = datasets[0];
+        auto y0 = proj0 / array::max(proj0);
+        y0 = pad2d(y0, padding, PadType::SYMMETRIC);
+        auto x0 = fbp(y0, polar_grids[0], out_dims);
 
         auto recon = Array<T>(out_dims);
-        auto x0 = fbp(y, polar_grid, out_dims);
 
         // run optimization
         switch (params.regularizer) {
             case Regularizer::UNCONSTRAINED: {
                 std::cout << "Starting unconstrained iterative reconstruction with "
                              "CG ...\n";
-                opt::Function<T> ATA = [&](const Array<T> &x) {
-                    return sysmat<T>(x, polar_grid);
-                };
-                recon = opt::cgsolver<T>(ATA, yT, x0, params.maxIters, params.tol);
+                recon = opt::cgsolver<T>(ATA, yT, x0, params.maxIters, params.tol, params.xtol);
                 break;
             }
             case Regularizer::SPLIT_BREGMAN: {
                 std::cout << "Starting MBIR with Split-Bregman method ...\n";
-                opt::Function<T> ATA = [&](const Array<T> &x) {
-                    return sysmat<T>(x, polar_grid);
-                };
                 recon = opt::split_bregman<T>(ATA, yT, x0, params.lambda, params.mu,
                                               params.maxIters, params.innerIters,
                                               params.tol, params.xtol);
@@ -99,13 +116,11 @@ namespace tomocam {
     }
 
     // explicit template instantiation
-    template Array<float> MBIR<float>(const Array<float> &projs,
-                                      const std::vector<float> &angles, float gamma,
+    template Array<float> MBIR<float>(const std::vector<Dataset_t<float>> &datasets,
                                       const dims_t &recon_dims,
                                       const ReconParams &cfg);
-    template Array<double> MBIR<double>(const Array<double> &projs,
-                                        const std::vector<double> &angles,
-                                        double gamma, const dims_t &recon_dims,
+    template Array<double> MBIR<double>(const std::vector<Dataset_t<double>> &datasets,
+                                        const dims_t &recon_dims,
                                         const ReconParams &cfg);
 
 } // namespace tomocam
