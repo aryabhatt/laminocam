@@ -43,8 +43,8 @@ namespace tomocam::opt {
         std::array<Array<T>, 3> d;
         std::array<Array<T>, 3> b;
         for (int i = 0; i < 3; ++i) {
-            d[i] = Array<T>::zeros_like(x);
-            b[i] = Array<T>::zeros_like(x);
+            d[i] = Array<T>::zeros(x.dims());
+            b[i] = Array<T>::zeros(x.dims());
         }
 
         // update A^TA to add laplacian of x
@@ -59,11 +59,11 @@ namespace tomocam::opt {
             auto rhs = yT - divergence(d_b) * mu;
 
             // use conjugate gradient to solve the linear system
-            x = cgsolver(Ap, rhs, x, inner_max, tol);
+            x = cgsolver(Ap, rhs, x, inner_max, tol, xtol);
 
             // isotropic TV shrinkage
             auto dx = grad_u(x);
-            auto sk = Array<T>::zeros_like(x);
+            auto sk = Array<T>::zeros(x.dims());
             for (size_t i = 0; i < x.size(); ++i) {
                 T sum_sq = 0;
                 for (size_t j = 0; j < 3; ++j) {
