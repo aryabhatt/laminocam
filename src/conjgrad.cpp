@@ -33,14 +33,14 @@
 namespace tomocam::opt {
     template <typename T>
     Array<T> cgsolver(const Function<T> &A, const Array<T> &yT, const Array<T> &x0,
-                      size_t max_iter, T tol) {
+                      size_t max_iter, T tol, T xtol) {
 
         // initialize
         auto x = x0.clone();
         auto r = yT - A(x);
 
         // diagnoal preconditioner
-        auto ones = Array<T>::like(x, (T)1);
+        auto ones = Array<T>::ones(x.dims());
         auto pre = A(ones);
         for (size_t i = 0; i < pre.size(); i++) {
             if (std::abs(pre[i]) < 1.2E-07) {
@@ -49,7 +49,7 @@ namespace tomocam::opt {
             }
         }
         // turn off for now
-        auto precond_apply = [&pre](const Array<T> &r) { return r.clone(); };
+        auto precond_apply = [&pre](const Array<T> &r) { return r / pre; };
 
         auto z = precond_apply(r);
         auto p = z.clone();
@@ -64,7 +64,8 @@ namespace tomocam::opt {
                 break;
             }
             auto alpha = rs_old / pAp;
-            x += p * alpha;
+            auto step = p * alpha;
+            x += step;
             r -= Ap * alpha;
 
             z = precond_apply(r);
@@ -72,10 +73,12 @@ namespace tomocam::opt {
             p = z + (p * (rs_new / rs_old));
             rs_old = rs_new;
 
-            // calculate and print the residual
+            // calculate and print the residual and solution change
             auto res = std::sqrt(array::dot(r, r));
-            std::cout << std::format("\t CG Iter: {}, residual: {}\n", iter, res);
+            auto dx = array::norm2(step) / (array::norm2(x) + T(1e-8));
+            std::cout << std::format("\t CG Iter: {}, residual: {}, dx: {:.6e}\n", iter, res, dx);
             if (std::sqrt(res) < tol) { break; }
+            if (dx < xtol) { break; }
         }
         return x;
     }
@@ -83,9 +86,9 @@ namespace tomocam::opt {
     // template instantiations
     template Array<float> cgsolver<float>(const Function<float> &,
                                           const Array<float> &, const Array<float> &,
-                                          size_t, float);
+                                          size_t, float, float);
     template Array<double> cgsolver<double>(const Function<double> &,
                                             const Array<double> &,
-                                            const Array<double> &, size_t, double);
+                                            const Array<double> &, size_t, double, double);
 
 } // namespace tomocam::opt
