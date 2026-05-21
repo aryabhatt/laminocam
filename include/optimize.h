@@ -88,12 +88,13 @@ namespace tomocam::opt {
      * @param y Right-hand side vector
      * @param x Initial guess for the solution
      * @param max_iter Maximum number of iterations
-     * @param tol Tolerance for convergence
+     * @param tol Tolerance for convergence based on residual norm
+     * @param xtol Tolerance for convergence based on solution change
      * @return Approximate solution vector
      */
     template <typename T>
     Array<T> cgsolver(const Function<T> &A, const Array<T> &y, const Array<T> &x,
-                      size_t max_iter, T tol);
+                      size_t max_iter, T tol, T xtol);
 
     /**
      * @brief Nesterov's Optimal Gradient Method with Boyd's momentum term
