@@ -14,7 +14,7 @@ int main() {
     // Define random f
     dims_t dims = {21, 511, 511};
     Array<float> f = Array<float>(dims);
-    f = Array<float>::random_like(f);
+    f = Array<float>::random(f.dims());
 
     // Define theta
     size_t ntheta = 141;
@@ -22,7 +22,7 @@ int main() {
     for (size_t i = 0; i < ntheta; i++) { theta[i] = (i - 70.f) * M_PI / 180.f; }
 
     auto pg = PolarGrid<float>(theta, 0, dims.n2, dims.n3);
-    auto y = Array<float>::random_like(pg.x.dims());
+    auto y = Array<float>::random(pg.x.dims());
     auto yTy = array::dot(y, y);
 
     Timer timer;
