@@ -15,7 +15,7 @@ int main() {
     // Define random f
     dims_t dims = {21, 721, 721};
     Array<float> f = Array<float>(dims);
-    f = Array<float>::random_like(f);
+    f = Array<float>::random(f.dims());
 
     // Define theta
     size_t ntheta = 141;
@@ -26,8 +26,8 @@ int main() {
 
     Timer timer;
     // hacky method to esitmate Lipschitz constant
-    auto f1 = Array<float>::like(f, 1.0f);
-    auto yt = Array<float>::zeros_like(f);
+    auto f1 = Array<float>::ones(dims);
+    auto yt = Array<float>::zeros(pg.dims());
     auto g1 = gradient(f1, yt, pg);
     std::cout << std::format("Max gradient: {:.6f}\n", array::max(g1));
     std::exit(1);
