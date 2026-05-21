@@ -121,14 +121,13 @@ namespace tomocam {
 
     /**
      * @brief Performs Model-Based Iterative Reconstruction (MBIR) of volume data.
-     * @param projections The input projection data as an Array.
-     * @param theta std::vector containing the projection angles.
+     * @param datasets Vector of input datasets, each containing projections, angles, and gamma.
      * @param recon_dims Dimensions of the output reconstructed volume.
      * @param params Configuration parameters for the optimizer.
      * @return The reconstructed volume data as an Array.
      */
     template <typename T>
-    Array<T> MBIR(const Array<T> &projections, const std::vector<T> &theta, T gamma,
+    Array<T> MBIR(const std::vector<Dataset_t<T>> &datasets,
                   const dims_t &recon_dims, const ReconParams &params);
 
 } // namespace tomocam
