@@ -54,20 +54,15 @@ int main(int argc, char **argv) {
     // set reconstruction dimensions
     dims_t recon_dims = params.recon_dims;
 
+    // print parameters
     params.print(std::cout);
+
     // flush the output
     std::cout << std::endl;
 
-    // Use the first dataset for reconstruction (for now)
-    Array<float> &projs = std::get<0>(datasets[0]);
-    std::vector<float> &angles = std::get<1>(datasets[0]);
-    float &gamma_ref = std::get<2>(datasets[0]);
-    float gamma = gamma_ref;
-
-
     tomocam::Timer t0;
     t0.start();
-    auto recon = tomocam::MBIR<float>(projs, angles, gamma, recon_dims, params);
+    auto recon = tomocam::MBIR<float>(datasets, recon_dims, params);
     t0.stop();
     std::cout << std::format("Reconstruction completed in {:.2f} seconds.\n",
                              t0.seconds());
