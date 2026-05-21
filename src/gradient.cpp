@@ -36,7 +36,8 @@ namespace tomocam {
         auto ccmplx = Array<std::complex<T>>(grid.dims());
         nufft::nufft3d2(ccmplx, xcmplx, grid);
         nufft::nufft3d1(ccmplx, xcmplx, grid);
-        return array::to_real(xcmplx) / scale;
+        // return array::to_real(xcmplx) / scale;
+        return array::to_real(xcmplx);
     }
     // Explicit instantiations
     template Array<float> sysmat(const Array<float> &, const PolarGrid<float> &);
