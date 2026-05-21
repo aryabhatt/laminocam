@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
     for (size_t i = 0; i < N; i++) { diagMat[i] = static_cast<float>(i + 1); }
 
     tomocam::Array<float> xref(dims);
-    auto x_true = tomocam::Array<float>::random_like(xref);
+    auto x_true = tomocam::Array<float>::random(xref.dims());
 
     // create b = A*x_true
     tomocam::Array<float> b(dims);
@@ -40,8 +40,8 @@ int main(int argc, char **argv) {
 
     // call CG solver
     // initialize guess
-    auto x = tomocam::Array<float>::random_like(xref);
-    auto x_sol = tomocam::opt::cgsolver(A, b, x, 1000, 1e-6f);
+    auto x = tomocam::Array<float>::random(xref.dims());
+    auto x_sol = tomocam::opt::cgsolver(A, b, x, 1000, 1.0e-06f, 1.0e-04f);
 
     return 0;
 }
