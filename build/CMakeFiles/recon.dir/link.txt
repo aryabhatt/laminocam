@@ -1,1 +1,0 @@
-/usr/bin/c++  -O3 -ftree-vectorize -march=native -fopenmp=libomp -O3 -DNDEBUG CMakeFiles/recon.dir/src/recon.cpp.o -o recon  -Wl,-rpath,/home/dkumar/XMCD/scalar/build:/usr/local/lib libtomocam.so /usr/lib/x86_64-linux-gnu/libfftw3.so /usr/lib/x86_64-linux-gnu/libfftw3f.so /usr/local/lib/libfinufft.so /usr/lib/x86_64-linux-gnu/libtbb.so.12.11 /usr/lib/x86_64-linux-gnu/libtiff.so 
