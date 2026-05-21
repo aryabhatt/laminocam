@@ -179,6 +179,11 @@ namespace tomocam {
             rv /= scalar;
             return rv;
         }
+        Array<T> operator/(const Array<T> &rhs) const {
+            auto rv = this->clone();
+            rv /= rhs;
+            return rv;
+        }
 
         // addition
         Array<T> &operator+=(T v) {
@@ -223,20 +228,21 @@ namespace tomocam {
         }
 
         // factory methods
-        static Array<T> zeros_like(const Array<T> &ref) {
-            Array<T> rv(ref.dims());
+        static Array<T> zeros(const dims_t &ref_dims) {
+            Array<T> rv(ref_dims);
             std::fill(std::execution::par_unseq, rv.begin(), rv.end(), T(0));
             return rv;
         }
         //  new array filled with value v
-        static Array<T> like(const Array<T> &ref, T v) {
-            Array<T> rv(ref.dims());
-            std::fill(std::execution::par_unseq, rv.begin(), rv.end(), v);
+        static Array<T> ones(const dims_t &ref_dims) {
+            Array<T> rv(ref_dims);
+            std::fill(std::execution::par_unseq, rv.begin(), rv.end(), (T(1)));
             return rv;
         }
+
         // new array with random values
-        static Array<T> random_like(const Array<T> &ref) {
-            Array<T> rv(ref.dims());
+        static Array<T> random(const dims_t &ref_dims) {
+            Array<T> rv(ref_dims);
             std::random_device rd;
             std::mt19937 gen(rd());
             if constexpr (std::is_floating_point<T>::value) {
