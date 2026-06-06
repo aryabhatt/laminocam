@@ -13,20 +13,20 @@ Tomocam implements efficient laminography reconstruction using:
 - **Split Bregman optimization** with total variation (TV) regularization for constrained problems
 
 ## Geometry
-
+![Laminography Geometry](figs/laminography.png)
 ### Coordinate Systems
 
 We define two coordinate systems:
 
 **Lab frame (detector coordinates):**
-- $X$: horizontal detector axis
-- $Y$: vertical detector axis  
-- $Z$: X-ray beam direction
+- X: horizontal detector axis
+- Y: vertical detector axis  
+- Z: X-ray beam direction
 
 **Sample frame (material coordinates):**
-- $x$: rotation axis (sample rotation)
-- $y$: in-plane, perpendicular to rotation axis
-- $z$: normal to sample surface
+- x: rotation axis (sample rotation)
+- y: in-plane, perpendicular to rotation axis
+- z: normal to sample surface
 
 ### Rotation Matrices
 
@@ -69,33 +69,33 @@ Let $\rho(x, y, z)$ denote the 3D scalar density (reconstructed volume) and $y(\
 
 The forward projection operator $P$ maps the volume to projections:
 
-$$y = P \, \rho$$
+$$y = \mathcal{P} \, \rho$$
 
 In the Fourier domain, the projection operator factorizes as:
 
-$$P = \mathcal{F}^{-1} \, \mathcal{F}_{\text{cal}}$$
+$$\mathcal{P} = \mathbb{F}^{-1} \, \mathcal{F}_{\text{cal}}$$
 
 where:
 - $\mathcal{F}_{\text{cal}}$ computes Fourier coefficients at the non-uniform sampling points (NUFFT forward)
-- $\mathcal{F}^{-1}$ transforms back to real space (IFFT)
+- $\mathbb{F}^{-1}$ transforms back to real space (IFFT)
 
 The adjoint operator is:
 
-$$P^T = \mathcal{F}_{\text{cal}}^* \, \mathcal{F}$$
+$$\mathcal{P}^T = \mathcal{F}_{\text{cal}}^* \, \mathbb{F}$$
 
 ### Least-Squares Problem
 
 The unconstrained tomographic reconstruction problem is:
 
-$$\hat{\rho} = \arg\min_{\rho} \left\| P \rho - y \right\|_2^2$$
+$$\rho = \arg\min_{\rho} \left\| \mathcal{P} \rho - y \right\|_2^2$$
 
 The gradient of the loss function is:
 
 $$\nabla J = A \rho - b$$
 
 where:
-- $A = P^T P$ (Hessian, or normal equations matrix)
-- $b = P^T y$ (right-hand side)
+- $A = \mathcal{P}^T \mathcal{P}$ (Hessian, or normal equations matrix)
+- $b = \mathcal{P}^T y$ (right-hand side)
 
 ## Conjugate Gradient Algorithm
 
