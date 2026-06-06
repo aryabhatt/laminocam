@@ -19,14 +19,14 @@ Tomocam implements efficient laminography reconstruction using:
 We define two coordinate systems:
 
 **Lab frame (detector coordinates):**
-- X: horizontal detector axis
-- Y: vertical detector axis  
-- Z: X-ray beam direction
+- $X$: horizontal detector axis
+- $Y$: vertical detector axis  
+- $Z$: X-ray beam direction
 
 **Sample frame (material coordinates):**
-- x: rotation axis (sample rotation)
-- y: in-plane, perpendicular to rotation axis
-- z: normal to sample surface
+- $x$: rotation axis (sample rotation)
+- $y$: in-plane, perpendicular to rotation axis
+- $z$: normal to sample surface
 
 ### Rotation Matrices
 

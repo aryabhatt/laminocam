@@ -1,15 +1,25 @@
 # Configuration file for Sphinx documentation builder
 
-project = 'Tomocam'
+project = 'Laminocam'
 copyright = '2024, Lawrence Berkeley National Laboratory'
 author = 'Berkeley Lab'
+version = '1.0'
 release = '1.0'
+language = 'en'
 
 extensions = [
     'myst_parser',
     'sphinx.ext.mathjax',
     'sphinx.ext.intersphinx',
-    'sphinx_rtd_theme',
+]
+
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
+}
+
+myst_enable_extensions = [
+    "dollarmath",
+    "amsmath",
 ]
 
 templates_path = ['_templates']
@@ -25,5 +35,3 @@ html_theme_options = {
     'vcs_pageview_mode': '',
     'style_nav_header_background': '#2980B9',
 }
-
-mathjax_path = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'
