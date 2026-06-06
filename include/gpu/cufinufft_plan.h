@@ -11,8 +11,8 @@
 #include <thrust/device_vector.h>
 
 #include "array.h"
-#include "polar_grid.h"
 #include "gpu/polar_grid.h"
+#include "polar_grid.h"
 
 namespace tomocam::gpu::nufft {
     template <typename T>
@@ -28,7 +28,7 @@ namespace tomocam::gpu::nufft {
                             int ntrans, plan_type *plan, cufinufft_opts *opts) {
             constexpr double TOL = 1e-14;
             return cufinufft_makeplan(type, dim, n_modes, iflag, ntrans, TOL, plan,
-                                     opts);
+                                      opts);
         }
         // set points for double precision
         static int setpts(plan_type plan, int64_t npts, double *x, double *y,
@@ -37,8 +37,8 @@ namespace tomocam::gpu::nufft {
         }
         // execute the plan for double precision
         static int execute(plan_type plan, complex_type *cz, complex_type *fz) {
-            return cufinufft_execute(plan, reinterpret_cast<cuDoubleComplex*>(cz), 
-                                    reinterpret_cast<cuDoubleComplex*>(fz));
+            return cufinufft_execute(plan, reinterpret_cast<cuDoubleComplex *>(cz),
+                                     reinterpret_cast<cuDoubleComplex *>(fz));
         }
         // destroy the plan for double precision
         static void destroy(plan_type plan) { cufinufft_destroy(plan); }
@@ -54,7 +54,7 @@ namespace tomocam::gpu::nufft {
                             int ntrans, plan_type *plan, cufinufft_opts *opts) {
             constexpr float TOL = 1.2e-06f;
             return cufinufftf_makeplan(type, dim, n_modes, iflag, ntrans, TOL, plan,
-                                      opts);
+                                       opts);
         }
         // set points for single precision
         static int setpts(plan_type plan, int64_t npts, float *x, float *y, float *z,
@@ -63,8 +63,8 @@ namespace tomocam::gpu::nufft {
         }
         // execute the plan for single precision
         static int execute(plan_type plan, complex_type *cz, complex_type *fz) {
-            return cufinufftf_execute(plan, reinterpret_cast<cuFloatComplex*>(cz), 
-                                     reinterpret_cast<cuFloatComplex*>(fz));
+            return cufinufftf_execute(plan, reinterpret_cast<cuFloatComplex *>(cz),
+                                      reinterpret_cast<cuFloatComplex *>(fz));
         }
         // destroy the plan for single precision
         static void destroy(plan_type plan) { cufinufftf_destroy(plan); }
@@ -89,7 +89,7 @@ namespace tomocam::gpu::nufft {
             }
             cufinufft_opts opts;
             cufinufft_default_opts(&opts);
-            opts.upsampfac = 2.0;
+            opts.upsampfac = 1.25;
             opts.gpu_device_id = gpu_id;
             int ierr =
                 Traits::makeplan(type, dim, n_modes.data(), iflag, 1, &plan, &opts);
@@ -105,26 +105,9 @@ namespace tomocam::gpu::nufft {
                 throw std::runtime_error(
                     "cuFinfftPlanWrapper::set_points called before make_plan");
             }
-            T *x = (T *)pg.x.begin();
-            T *y = (T *)pg.y.begin();
-            T *z = (T *)pg.z.begin();
-            int ierr =
-                Traits::setpts(plan, pg.npts, x, y, z, 0, nullptr, nullptr, nullptr);
-            if (ierr != 0) { throw std::runtime_error("Error in cufinufft_setpts"); }
-        }
-
-        // Overload for CPU-resident PolarGrid (uploads coordinates to device)
-        void set_points(const tomocam::PolarGrid<T> &pg) {
-            if (!initialized) {
-                throw std::runtime_error(
-                    "cuFinfftPlanWrapper::set_points called before make_plan");
-            }
-            thrust::device_vector<T> d_x(pg.x.begin(), pg.x.end());
-            thrust::device_vector<T> d_y(pg.y.begin(), pg.y.end());
-            thrust::device_vector<T> d_z(pg.z.begin(), pg.z.end());
-            T *x = thrust::raw_pointer_cast(d_x.data());
-            T *y = thrust::raw_pointer_cast(d_y.data());
-            T *z = thrust::raw_pointer_cast(d_z.data());
+            T *x = const_cast<T *>(pg.x.data());
+            T *y = const_cast<T *>(pg.y.data());
+            T *z = const_cast<T *>(pg.z.data());
             int ierr =
                 Traits::setpts(plan, pg.npts, x, y, z, 0, nullptr, nullptr, nullptr);
             if (ierr != 0) { throw std::runtime_error("Error in cufinufft_setpts"); }
@@ -136,7 +119,9 @@ namespace tomocam::gpu::nufft {
                     "cuFinfftPlanWrapper::execute: plan not initialized");
             }
             int ierr = Traits::execute(plan, cz, fz);
-            if (ierr != 0) { throw std::runtime_error("Error in cufinufft_execute"); }
+            if (ierr != 0) {
+                throw std::runtime_error("Error in cufinufft_execute");
+            }
         }
 
         ~cuFinfftPlanWrapper() {

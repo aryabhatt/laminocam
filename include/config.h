@@ -34,6 +34,7 @@
 
 #include "array.h"
 #include "mask.h"
+#include "recon_params.h"
 #include "tiff.h"
 
 namespace tomocam {
@@ -52,10 +53,6 @@ namespace tomocam {
                 "Failed to parse TOML file '{}': {}", filepath, err.description()));
         }
     }
-
-    // Dataset type: (projections, angles, gamma)
-    template <typename T>
-    using Dataset_t = std::tuple<Array<T>, std::vector<T>, T>;
 
     // Function to read angles from a text file
     template <typename T>
@@ -140,8 +137,9 @@ namespace tomocam {
         return datasets;
     }
 
-    enum class Regularizer { SPLIT_BREGMAN, UNCONSTRAINED };
+    /***
 
+      enum class Regularizer { SPLIT_BREGMAN, UNCONSTRAINED };
     // Reconstruction parameters
     struct ReconParams {
         Regularizer regularizer =
@@ -154,82 +152,6 @@ namespace tomocam {
         float tol = 1e-5f;         // Tolerance for convergence
         float xtol = 1e-5f;        // Tolerance for solution change
         float PAD_FACTOR = 1.4142; // sqrt(2) padding factor
-
-        ReconParams() = default;
-        ReconParams(const toml::table &config) {
-
-            // Read [recon_params] section
-            auto recon = config["recon_params"].as_table();
-            if (!recon) {
-                throw std::runtime_error(
-                    "Missing [recon_params] section in config file");
-            }
-            // read max_outer_iters
-            maxIters = (*recon)["max_iters"].value_or<size_t>(50);
-            // innerIters = recon["inner_iters"].value_or<size_t>(3);
-
-            // read recon_dims
-            const auto *dims = (*recon)["recon_dims"].as_array();
-            if (dims && dims->size() == 3) {
-                for (size_t i = 0; i < 3; ++i) {
-                    size_t temp = (*dims)[i].value_or<size_t>(0);
-                    if (temp == 0) {
-                        throw std::runtime_error(
-                            std::format("[recon_params] 'recon_dims[{}]' must be a "
-                                        "positive integer",
-                                        i));
-                    }
-                    if (temp % 2 == 0) {
-                        temp -= 1; // make sure it's odd
-                    }
-                    recon_dims[i] = temp;
-                }
-            } else {
-                throw std::runtime_error("[recon_params] 'recon_dims' must be an "
-                                         "array of three integers");
-            }
-            // if reocn dims[0]/dims[2] > 0.15, remind user that since this is
-            // laminography, the thickness is expected to be much smaller than the
-            // in-plane dimensions, and this may lead to increased memory usage
-            float ratio = static_cast<float>(recon_dims[0]) /
-                          static_cast<float>(recon_dims[2]);
-            if (ratio > 0.15f) {
-                std::cerr << std::format(
-                    "\033[31mWarning\033[0m: recon_dims[0] / recon_dims[2] = "
-                    "{:.2f} > 0.15.\n"
-                    "laminography thickness (recon_dims[0]) "
-                    "is expected to be much smaller than the in-plane "
-                    "dimensions (recon_dims[1], recon_dims[2]).\n",
-                    ratio);
-            }
-            tol = (*recon)["tol"].value_or<float>(1e-5f);
-            xtol = (*recon)["xtol"].value_or<float>(1e-5f);
-            // read regularizer type
-            // check of regularizer section exists
-            if (recon->contains("regularizer")) {
-                auto reg = (*recon)["regularizer"].as_table();
-                if (reg) {
-                    auto reg_str =
-                        (*reg)["method"].value_or<std::string>("split_bregman");
-                    if (reg_str == "split_bregman") {
-                        regularizer = Regularizer::SPLIT_BREGMAN;
-                        auto params = (*reg)["split_bregman"].as_table();
-                        if (!params) {
-                            throw std::runtime_error(
-                                "Missing [recon_params.regularizer.split_bregman] "
-                                "section "
-                                "in config file");
-                        }
-                        lambda = (*params)["lambda"].value_or<float>(0.1f);
-                        mu = (*params)["mu"].value_or<float>(10.0f);
-                        innerIters = (*params)["inner_iters"].value_or<size_t>(3);
-                    } else {
-                        throw std::runtime_error(
-                            "[recon_params] 'regularizer' must be 'split_bregman'");
-                    }
-                }
-            }
-        }
 
         void print(std::ostream &os) const {
 
@@ -250,58 +172,117 @@ namespace tomocam {
             }
         }
     };
+    ****/
+
+    inline ReconParams parse_recon_params(const toml::table &config) {
+        ReconParams p;
+
+        // Read [recon_params] section
+        auto recon = config["recon_params"].as_table();
+        if (!recon) {
+            throw std::runtime_error(
+                "Missing [recon_params] section in config file");
+        }
+        p.maxIters = (*recon)["max_iters"].value_or<size_t>(50);
+
+        const auto *dims = (*recon)["recon_dims"].as_array();
+        if (dims && dims->size() == 3) {
+            for (size_t i = 0; i < 3; ++i) {
+                size_t temp = (*dims)[i].value_or<size_t>(0);
+                if (temp == 0) {
+                    throw std::runtime_error(
+                        std::format("[recon_params] 'recon_dims[{}]' must be a "
+                                    "positive integer",
+                                    i));
+                }
+                if (temp % 2 == 0) temp -= 1;
+                p.recon_dims[i] = temp;
+            }
+        } else {
+            throw std::runtime_error("[recon_params] 'recon_dims' must be an "
+                                     "array of three integers");
+        }
+        float ratio = static_cast<float>(p.recon_dims[0]) /
+                      static_cast<float>(p.recon_dims[2]);
+        if (ratio > 0.15f) {
+            std::cerr << std::format(
+                "\033[31mWarning\033[0m: recon_dims[0] / recon_dims[2] = "
+                "{:.2f} > 0.15.\n"
+                "laminography thickness (recon_dims[0]) "
+                "is expected to be much smaller than the in-plane "
+                "dimensions (recon_dims[1], recon_dims[2]).\n",
+                ratio);
+        }
+        p.tol = (*recon)["tol"].value_or<float>(1e-5f);
+        p.xtol = (*recon)["xtol"].value_or<float>(1e-5f);
+        if (recon->contains("regularizer")) {
+            auto reg = (*recon)["regularizer"].as_table();
+            if (reg) {
+                auto reg_str =
+                    (*reg)["method"].value_or<std::string>("split_bregman");
+                if (reg_str == "split_bregman") {
+                    p.regularizer = Regularizer::SPLIT_BREGMAN;
+                    auto params = (*reg)["split_bregman"].as_table();
+                    if (!params) {
+                        throw std::runtime_error(
+                            "Missing [recon_params.regularizer.split_bregman] "
+                            "section in config file");
+                    }
+                    p.lambda = (*params)["lambda"].value_or<float>(0.1f);
+                    p.mu = (*params)["mu"].value_or<float>(10.0f);
+                    p.innerIters = (*params)["inner_iters"].value_or<size_t>(3);
+                } else {
+                    throw std::runtime_error(
+                        "[recon_params] 'regularizer' must be 'split_bregman'");
+                }
+            }
+        }
+        return p;
+    };
 
     // Output parameters
-    struct OutputParams {
-        std::string filepath;
+    inline OutputParams parse_output_params(const toml::table &config) {
+
+        OutputParams params;
+        // Read [output] section
+        auto output = config["output"];
+        if (!output) {
+            throw std::runtime_error("Missing [output] section in config file");
+        }
+        params.filepath = output["filename"].value_or<std::string>("./recon.tiff");
+
+        // Read formats array
         std::vector<std::string> formats;
-
-        OutputParams() = default;
-        OutputParams(const toml::table &config) {
-
-            // Read [output] section
-            auto output = config["output"];
-            if (!output) {
-                throw std::runtime_error("Missing [output] section in config file");
-            }
-            filepath = output["filename"].value_or<std::string>("./recon.tiff");
-
-            // Read formats array
-            auto formats_array = output["formats"].as_array();
-            if (formats_array) {
-                for (auto &elem : *formats_array) {
-                    auto fmt = elem.value<std::string>();
-                    if (!fmt.has_value()) {
-                        throw std::runtime_error(
-                            "[output] 'formats' array must contain strings");
-                    }
-                    if (*fmt != "tiff" && *fmt != "vti") {
-                        throw std::runtime_error(std::format(
-                            "[output] invalid format '{}'. Must be 'tiff' or 'vti'",
-                            *fmt));
-                    }
-                    formats.push_back(*fmt);
+        auto formats_array = output["formats"].as_array();
+        if (formats_array) {
+            for (auto &elem : *formats_array) {
+                auto fmt = elem.value<std::string>();
+                if (!fmt.has_value()) {
+                    throw std::runtime_error(
+                        "[output] 'formats' array must contain strings");
                 }
-            } else {
-                // Default to both formats if not specified
-                formats = {"tiff", "vti"};
-            }
-
-            // Remove duplicates while preserving order
-            std::vector<std::string> unique_formats;
-            for (const auto &fmt : formats) {
-                if (std::find(unique_formats.begin(), unique_formats.end(), fmt) ==
-                    unique_formats.end()) {
-                    unique_formats.push_back(fmt);
+                if (*fmt != "tiff" && *fmt != "vti") {
+                    throw std::runtime_error(std::format(
+                        "[output] invalid format '{}'. Must be 'tiff' or 'vti'",
+                        *fmt));
                 }
+                formats.push_back(*fmt);
             }
-            formats = std::move(unique_formats);
+        } else {
+            formats = {"tiff"};
         }
 
-        bool has_format(const std::string &fmt) const {
-            return std::find(formats.begin(), formats.end(), fmt) != formats.end();
+        // Remove duplicates while preserving order
+        std::vector<std::string> unique_formats;
+        for (const auto &fmt : formats) {
+            if (std::find(unique_formats.begin(), unique_formats.end(), fmt) ==
+                unique_formats.end()) {
+                unique_formats.push_back(fmt);
+            }
         }
-    };
+        params.formats = std::move(unique_formats);
+        return params;
+    }
 
     // Function to dump an example configuration file
     inline void dump_config(const std::string &filepath = "config.toml") {

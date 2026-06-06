@@ -84,7 +84,7 @@ namespace tomocam::gpu::opt {
                                                      yfreq[j] * yfreq[j]);
                 }
             }
-            copyH2D(filter_.begin(), h_filt.data(), n2 * nc_ * sizeof(T));
+            copyH2D(filter_.data(), h_filt.data(), n2 * nc_ * sizeof(T));
         }
 
         ~GpuRampPreconditioner() = default;

@@ -17,32 +17,32 @@
  * perform publicly and display publicly, and to permit other to do so.
  *---------------------------------------------------------------------------------
  */
-#include <cuda_runtime.h>
+
+#ifndef TOMOCAM_GPU_BREGMAN_H
+#define TOMOCAM_GPU_BREGMAN_H
+
+#include <array>
 
 #include "gpu/device_array.h"
-#include "gpu/device_ptr.h"
-#include "gpu/utils.cuh"
 
-namespace tomocam::gpu {
+namespace tomocam::gpu::opt {
 
+    /**
+     * @brief Compute isotropic norm sk[i] = sqrt( sum_j (dx[j][i] + b[j][i])^2 )
+     *        used in the split-Bregman TV shrinkage step.
+     */
     template <typename T>
-    __global__ void diverg_kernel(const DevicePtr<T> vx, const DevicePtr<T> vy,
-                                  const DevicePtr<T> vz, DevicePtr<T> out) {
-        auto idx = Inde3D();
+    DeviceArray<T> compute_sk(const std::array<DeviceArray<T>, 3> &dx,
+                              const std::array<DeviceArray<T>, 3> &b);
 
-        if (idx < out.dims()) {
-            T div = T(0);
-        
-                div += vx(idx.x, idx.y, idx.z) - vx(idx.x - 1, idx.y, idx.z);
-            
-            if (idx.y > 0) {
-                div += vy(idx.x, idx.y, idx.z) - vy(idx.x, idx.y - 1, idx.z);
-            }
-            if (idx.z > 0) {
-                div += vz(idx.x, idx.y, idx.z) - vz(idx.x, idx.y, idx.z - 1);
-            }
-            out(idx.x, idx.y, idx.z) = div;
-        }
-    }
+    /**
+     * @brief Isotropic TV shrinkage:
+     *        d[i] = max(0, sk[i] - lambda/mu) * (dx[i] + b[i]) / (sk[i] + eps)
+     */
+    template <typename T>
+    DeviceArray<T> shrink(const DeviceArray<T> &dx, const DeviceArray<T> &b,
+                          const DeviceArray<T> &sk, T lambda, T mu);
 
-} // namespace tomocam::gpu
+} // namespace tomocam::gpu::opt
+
+#endif // TOMOCAM_GPU_BREGMAN_H

@@ -6,11 +6,10 @@
             "displayName": "MacOS",
             "description": "Debug build with debug symbols for MacOS",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/debug",
+            "binaryDir": "${sourceDir}/build/debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_C_COMPILER": "clang",
-                "CMAKE_CXX_COMPILER": "clang++",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
                 "CMAKE_CXX_FLAGS": "-fexperimental-library",
                 "CMAKE_OSX_DEPLOYMENT_TARGET": "15.5",
                 "ENABLE_TESTS": {
@@ -29,18 +28,11 @@
             "displayName": "Yoneda",
             "description": "Debug build with debug symbols for Arch Linux",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/debug",
+            "binaryDir": "${sourceDir}/build/debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_C_COMPILER": "clang",
                 "CMAKE_CXX_COMPILER": "clang++",
-                "CMAKE_CUDA_HOST_COMPILER": "clang++",
-                "CMAKE_CUDA_STANDARD": "20",
-                "CMAKE_CUDA_ARCHITECTURES": "native",
-                "USE_GPU": {
-                    "type": "BOOL",
-                    "value": "ON"
-                },
                 "ENABLE_TESTS": {
                     "type": "BOOL",
                     "value": "ON"
@@ -57,21 +49,14 @@
             "displayName": "Yoneda Release",
             "description": "Release build for Arch Linux",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/release",
+            "binaryDir": "${sourceDir}/build/release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_C_COMPILER": "clang",
                 "CMAKE_CXX_COMPILER": "clang++",
-                "CMAKE_CUDA_HOST_COMPILER": "clang++",
-                "CMAKE_CUDA_STANDARD": "20",
-                "CMAKE_CUDA_ARCHITECTURES": "native",
-                "USE_GPU": {
-                    "type": "BOOL",
-                    "value": "ON"
-                },
                 "ENABLE_TESTS": {
                     "type": "BOOL",
-                    "value": "OFF"
+                    "value": "ON"
                 }
             },
             "condition": {
@@ -90,7 +75,6 @@
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_C_COMPILER": "gcc",
                 "CMAKE_CXX_COMPILER": "g++",
-                "finufft_DIR": "/global/common/software/als/finufft/",
                 "ENABLE_TESTS": {
                     "type": "BOOL",
                     "value": "ON"
@@ -112,7 +96,6 @@
                 "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_C_COMPILER": "gcc",
                 "CMAKE_CXX_COMPILER": "g++",
-                "finufft_DIR": "/global/common/software/als/finufft/",
                 "ENABLE_TESTS": {
                     "type": "BOOL",
                     "value": "OFF"
@@ -123,28 +106,12 @@
                 "lhs": "${hostSystemName}",
                 "rhs": "Linux"
             }
-        },
-        {
-            "name": "mem-verify",
-            "displayName": "Memory Verification",
-            "description": "Debug build with TOMOCAM_MEMORY_VERIFY=ON: inserts cudaMemGetInfo checkpoints in split_bregman and cgsolver to compare actual vs. predicted GPU memory at runtime.",
-            "inherits": "arch",
-            "binaryDir": "${sourceDir}/build/mem-verify",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "TOMOCAM_MEMORY_VERIFY": {
-                    "type": "BOOL",
-                    "value": "ON"
-                }
-            }
         }
-
     ],
     "buildPresets": [
         {
             "name": "macos",
-            "configurePreset": "macos",
-            "cleanFirst": false
+            "configurePreset": "macos"
         },
         {
             "name": "arch",
@@ -161,10 +128,6 @@
         {
             "name": "nersc-release",
             "configurePreset": "nersc-release"
-        },
-        {
-            "name": "mem-verify",
-            "configurePreset": "mem-verify"
         }
     ],
     "testPresets": [
@@ -178,18 +141,6 @@
           },
           "filter": {
               "include":  { "name": "test" }
-          }
-      },
-      {
-          "name": "mem-verify",
-          "displayName": "Memory verification tests",
-          "configurePreset": "mem-verify",
-          "output": {
-              "outputOnFailure": true,
-              "verbosity": "verbose"
-          },
-          "filter": {
-              "include": { "name": "test" }
           }
       }  
     ],
@@ -217,31 +168,6 @@
             "steps": [
                 { "name": "arch-release", "type": "configure" },
                 { "name": "arch-release", "type": "build" }
-            ]
-        },
-        {
-            "name": "nersc",
-            "displayName": "Full workflow for nersc",
-            "steps": [
-                { "name": "nersc", "type": "configure" },
-                { "name": "nersc", "type": "build" }
-            ]
-        },
-        {
-            "name": "nersc-release",
-            "displayName": "Full workflow for nersc release",
-            "steps": [
-                { "name": "nersc-release", "type": "configure" },
-                { "name": "nersc-release", "type": "build" }
-            ]
-        },
-        {
-            "name": "mem-verify",
-            "displayName": "Configure, build, and run memory-verify tests",
-            "steps": [
-                { "name": "mem-verify", "type": "configure" },
-                { "name": "mem-verify", "type": "build" },
-                { "name": "mem-verify", "type": "test" }
             ]
         }
     ]

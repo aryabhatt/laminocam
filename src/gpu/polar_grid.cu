@@ -17,47 +17,70 @@
  * perform publicly and display publicly, and to permit other to do so.
  *---------------------------------------------------------------------------------
  */
-#include <cmath>
-#include <cuda_runtime.h>
 
-#include "gpu/device_ptr.cuh"
-#include "gpu/utils.cuh"
+#include <cuda_runtime.h>
+#include <thrust/device_vector.h>
+
+#include "gpu/device_array.h"
+#include "gpu/device_ptr.h"
+#include "gpu/polar_grid.h"
+#include "gpu/utils.h"
+
+constexpr double PI = 3.14159265358979323846;
 
 namespace tomocam::gpu {
 
     template <typename T>
-    __global__ void make_polar_grid(DevicePtr<T> x, DevicePtr<T> y,
-        DevicePtr<T> z, float *angles) {
+    __global__ void make_polar_grid_kernel(T *theta, T gamma, DevicePtr<T> x,
+                                           DevicePtr<T> y, DevicePtr<T> z) {
 
         auto dims = x.dims();
-        uint3 idx = Index3D();
+        auto idx = Index3D();
+
+        T dX = 2 * PI / (T)dims.n3;
+        T dY = 2 * PI / (T)dims.n2;
         if (idx < dims) {
-            T cos_t = cos(angles[idx.x]);
-            T sin_t = sin(angles[idx.x]);
+            // qX, qY frequency coordinates in the plane of the detector
+            T qX = (idx.z + 0.5) * dX - PI;
+            T qY = (idx.y + 0.5) * dY - PI;
+            // qZ frequency coordinate along the beam direction
 
-            T dx = (2 * M_PI) / static_cast<T>(dims.x());
-            T dr = (2 * M_PI) / static_cast<T>(dims.y());
-
-            x[idx] = dims.z() * dx - M_PI;
-            y[idx] = (dims.y() * dr - M_PI) * sin_t;
-            z[idx] = (dims.y() * dr - M_PI) * cos_t;
+            x[idx] = qX * cos(gamma) - qY * sin(gamma) * cos(theta[idx.x]);
+            y[idx] = qX * sin(gamma) + qY * cos(gamma) * cos(theta[idx.x]);
+            z[idx] = qY * sin(theta[idx.x]);
         }
     }
 
     template <typename T>
-    __global__ void rotate_polar_grid(DevicePtr<T> x, DevicePtr<T> y, T gamma) {
+    void make_polar_grid(const std::vector<T> &angles, T gamma,
+                         DeviceArray<T> &x, DeviceArray<T> &y, DeviceArray<T> &z) {
+
+        // move angles to device
+        thrust::device_vector<T> d_angles = angles;
 
         auto dims = x.dims();
-        uint3 idx = Index3D();
-        if (idx < dims) {
-            auto cos_g = cos(gamma);
-            auto sin_g = sin(gamma);
-            auto rx = x[idx];
-            auto ry = y[idx];
-
-            x[idx] = rx * cos_g - ry * sin_g;
-            y[idx] = rx * sin_g + ry * cos_g;
-        }
+        dim3 blockSize(1, 16, 16);
+        dim3 gridSize;
+        gridSize.x = (dims.n1 + blockSize.x - 1) / blockSize.x;
+        gridSize.y = (dims.n2 + blockSize.y - 1) / blockSize.y;
+        gridSize.z = (dims.n3 + blockSize.z - 1) / blockSize.z;
+        make_polar_grid_kernel<T><<<gridSize, blockSize>>>(
+            thrust::raw_pointer_cast(d_angles.data()), gamma, x, y, z);
+        SAFE_CALL(cudaGetLastError());
     }
+
+    template <typename T>
+    PolarGrid<T>::PolarGrid(const std::vector<T> &theta, T gamma, size_t nrows,
+                            size_t ncols) {
+        auto dims = dims_t{theta.size(), nrows, ncols};
+        npts = dims.n1 * dims.n2 * dims.n3;
+        x = DeviceArray<T>(dims);
+        y = DeviceArray<T>(dims);
+        z = DeviceArray<T>(dims);
+        make_polar_grid(theta, gamma, x, y, z);
+    }
+
+    template struct PolarGrid<float>;
+    template struct PolarGrid<double>;
 
 } // namespace tomocam::gpu

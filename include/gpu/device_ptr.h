@@ -21,30 +21,26 @@
 #ifndef DEVICE_PTR__H
 #define DEVICE_PTR__H
 
-#include <cstdint>
 #include <cuda_runtime.h>
-#include <sys/types.h>
 
-#include "../dtypes.h"
+#include "dtypes.h"
 
 namespace tomocam::gpu {
 
-    /// A non-owining view of device pointer with 3D indexing
-    template <class T>
+    template <typename T>
     class DevicePtr {
 
       private:
         T *dev_ptr_;
-        int2 halo_;
         dims_t dims_;
 
-        size_t flat_idx(int i, int j, int k) const {
+        __device__ size_t flat_idx(int i, int j, int k) const {
             return (static_cast<size_t>(i) * dims_.n2 * dims_.n3) +
                    (static_cast<size_t>(j) * dims_.n3) + static_cast<size_t>(k);
         }
 
       public:
-        explicit DevicePtr(dims_t dims, T *ptr) : dims_(dims), dev_ptr_(ptr) {}
+        DevicePtr(T *dev_ptr, dims_t dims) : dev_ptr_(dev_ptr), dims_(dims) {}
 
         __host__ __device__ [[nodiscard]] auto dims() const { return dims_; }
         __host__ __device__ [[nodiscard]] size_t size() const {
@@ -52,39 +48,32 @@ namespace tomocam::gpu {
         }
 
         // obj indexing
-        __host__ __device__ T &operator[](int3 idx3) {
+        __device__ T &operator[](int3 idx3) {
             auto idx = flat_idx(idx3.x, idx3.y, idx3.z);
             return dev_ptr_[idx];
         }
 
         // const obj indexing
-        __host__ __device__ const T &operator[](int3 idx3) const {
+        __device__ const T &operator[](int3 idx3) const {
             auto idx = flat_idx(idx3.x, idx3.y, idx3.z);
             return dev_ptr_[idx];
         }
 
         // linear indexing
-        __host__ __device__ T &operator[](size_t idx) { return dev_ptr_[idx]; }
+        __device__ T &operator[](size_t idx) { return dev_ptr_[idx]; }
 
         // const linear indexing
-        __host__ __device__ const T &operator[](size_t idx) const {
-            return dev_ptr_[idx];
-        }
+        __device__ const T &operator[](size_t idx) const { return dev_ptr_[idx]; }
 
         // three-dim indexing
-        __host__ __device__ T &operator()(int i, int j, int k) {
+        __device__ T &operator()(int i, int j, int k) {
             auto idx = flat_idx(i, j, k);
             return dev_ptr_[idx];
         }
 
         // const three-dim indexing
-        __host__ __device__ const T &operator()(int i, int j, int k) const {
+        __device__ const T &operator()(int i, int j, int k) const {
             auto idx = flat_idx(i, j, k);
-            return dev_ptr_[idx];
-        }
-        __device__ const &T at(int i, int j, int k) const {
-            auto i1 = halo_.x + i;
-            auto idx = dims_.flat_idx(i1, j, k);
             return dev_ptr_[idx];
         }
     };

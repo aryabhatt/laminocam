@@ -65,8 +65,7 @@ namespace tomocam::gpu::opt {
                         std::sqrt(xfreq[k] * xfreq[k] + yfreq[j] * yfreq[j]);
                 }
             }
-            SAFE_CALL(cudaMemcpy(filter_.begin(), h_filt.data(),
-                                 n2 * nc_ * sizeof(T), cudaMemcpyHostToDevice));
+            copyH2D(filter_.data(), h_filt.data(), n2 * nc_ * sizeof(T));
         }
 
         GpuRampPreconditioner(const GpuRampPreconditioner &) = delete;

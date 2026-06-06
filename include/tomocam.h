@@ -96,30 +96,6 @@ namespace tomocam {
     Array<T> sysmat(const Array<T> &x, const PolarGrid<T> &grid);
 
     /**
-     * @brief Computes the gradient of the objective function for iterative
-     * reconstruction.
-     * @param x Current estimate of the volume data as an Array.
-     * @param b backprojection data as an Array.
-     * @param grid The polar grid defining the projection geometry.
-     * @return The gradient as an Array.
-     */
-    template <typename T>
-    Array<T> gradient(const Array<T> &x, const Array<T> &b,
-                      const PolarGrid<T> &grid);
-
-    /**
-     * @brief Computes the residual between the projected data and the measured data.
-     * @param x Current estimate of the volume data as an Array.
-     * @param b backprojection data as an Array.
-     * @param grid The polar grid defining the projection geometry.
-     * @param yTy Precomputed inner product of the measured data.
-     * @return The computed residual as a scalar value of type T.
-     */
-    template <typename T>
-    T residual(const Array<T> &x, const Array<T> &b, const PolarGrid<T> &grid,
-               T yTy);
-
-    /**
      * @brief Performs Model-Based Iterative Reconstruction (MBIR) of volume data.
      * @param datasets Vector of input datasets, each containing projections, angles, and gamma.
      * @param recon_dims Dimensions of the output reconstructed volume.

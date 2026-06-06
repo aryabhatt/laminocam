@@ -18,7 +18,7 @@
  *---------------------------------------------------------------------------------
  */
 #include <complex>
-#include <format>
+#include <execution>
 
 #include "array.h"
 #include "array_ops.h"
@@ -35,6 +35,10 @@ namespace tomocam {
         auto xcmplx = array::to_complex(x);
         auto ccmplx = Array<std::complex<T>>(grid.dims());
         nufft::nufft3d2(ccmplx, xcmplx, grid);
+        // density compensation
+        std::transform(std::execution::par_unseq, ccmplx.begin(), ccmplx.end(),
+                       grid.w.begin(), ccmplx.begin(),
+                       [](const std::complex<T> &c, T w) { return c * w; });
         nufft::nufft3d1(ccmplx, xcmplx, grid);
         // return array::to_real(xcmplx) / scale;
         return array::to_real(xcmplx);
@@ -42,37 +46,4 @@ namespace tomocam {
     // Explicit instantiations
     template Array<float> sysmat(const Array<float> &, const PolarGrid<float> &);
     template Array<double> sysmat(const Array<double> &, const PolarGrid<double> &);
-
-    // Compute gradient of ||R^T R f - yT||^2
-    template <typename T>
-    Array<T> gradient(const Array<T> &f, const Array<T> &yT,
-                      const PolarGrid<T> &grid) {
-        auto AAx = sysmat(f, grid);
-        return (AAx - yT);
-    }
-    // Explicit instantiations
-    template Array<float> gradient(const Array<float> &, const Array<float> &,
-                                   const PolarGrid<float> &);
-    template Array<double> gradient(const Array<double> &, const Array<double> &,
-                                    const PolarGrid<double> &);
-
-    // Compute residual ||R^T R f - yT||^2
-    template <typename T>
-    T residual(const Array<T> &f, const Array<T> &yT, const PolarGrid<T> &grid,
-               T yTy) {
-        auto AAx = sysmat(f, grid);
-        auto xAAx = array::dot(f, AAx);
-        auto yTx = array::dot(f, yT);
-#ifdef DEBUG
-        std::cout << std::format("residual: xAAx = {}, yTx = {}, yTy = {}\n", xAAx,
-                                 yTx, yTy);
-#endif
-        return xAAx - 2.0 * yTx + yTy;
-    }
-
-    // Explicit instantiations
-    template float residual(const Array<float> &, const Array<float> &,
-                            const PolarGrid<float> &, float);
-    template double residual(const Array<double> &, const Array<double> &,
-                             const PolarGrid<double> &, double);
 } // namespace tomocam

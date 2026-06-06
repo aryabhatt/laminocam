@@ -24,6 +24,11 @@ namespace tomocam::gpu::fft {
         cuFFTPlanCache(cuFFTPlanCache &&) = delete;
         cuFFTPlanCache &operator=(cuFFTPlanCache &&) = delete;
 
+        void clear() {
+            std::lock_guard<std::mutex> lock(cache_mutex_);
+            plan_cache_.clear();
+        }
+
         cuFFTPlanWrapper<T> &get_plan(int dim, std::array<int, 3> n_modes,
                                       cufftType type, int gpu_id) {
             std::lock_guard<std::mutex> lock(cache_mutex_);

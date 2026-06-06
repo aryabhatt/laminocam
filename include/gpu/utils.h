@@ -3,9 +3,10 @@
 #ifndef CUDA_UTILS_H
 #define CUDA_UTILS_H
 
-#include <cufft.h>
 #include <cuda_runtime.h>
+#include <cufft.h>
 
+#include <stdexcept>
 #include <tuple>
 
 #define SAFE_CALL(ans)                                                              \
@@ -30,8 +31,10 @@ inline void checkCufft(cufftResult result, const char *file, int line) {
 namespace tomocam::gpu {
 
 #ifdef __NVCC__
+    inline dim3 make_dim3(dims_t dims) { return dim3(dims.n1, dims.n2, dims.n3); }
+
     // Utility function to calculate block dimensions for a given problem
-    inline dim3 make_grid(dim3 dimensions, dim3 threads = {1, 16, 16}) {
+    inline dim3 make_grid(dim3 dimensions, dim3 threads = {1, 8, 32}) {
         dim3 blocks;
         blocks.x = (dimensions.x + threads.x - 1) / threads.x;
         blocks.y = (dimensions.y + threads.y - 1) / threads.y;
@@ -39,11 +42,19 @@ namespace tomocam::gpu {
         return blocks;
     }
 
+    inline dim3 make_grid(dims_t dimensions, dim3 threads = {1, 8, 32}) {
+        return make_grid(make_dim3(dimensions), threads);
+    }
+
     // Utility function to get the 3D index of the current thread in the grid
     __device__ __inline__ int3 Index3D() {
         return make_int3(blockIdx.x * blockDim.x + threadIdx.x,
                          blockIdx.y * blockDim.y + threadIdx.y,
                          blockIdx.z * blockDim.z + threadIdx.z);
+    }
+
+    __device__ __inline__ bool operator<(const int3 &a, const dims_t &b) {
+        return ((size_t)a.x < b.n1) && ((size_t)a.y < b.n2) && ((size_t)a.z < b.n3);
     }
 
 #endif // __NVCC__

@@ -107,8 +107,7 @@ namespace tomocam {
 
         // indexing for total-variation regularization (with OOB handling)
         T at(size_t i, size_t j, size_t k) const {
-            if (i < 0 || i >= dims_.x() || j < 0 || j >= dims_.y() || k < 0 ||
-                k >= dims_.z()) {
+            if (i >= dims_.x() || j >= dims_.y() || k >= dims_.z()) {
                 return T(0); // for out-of-bounds, return zero
             }
             return ptr_[flatIdx(i, j, k)];
@@ -148,9 +147,19 @@ namespace tomocam {
                            this->begin(), [v](T x) { return x * v; });
             return *this;
         }
-        Array<T> operator*(T v) {
+        Array<T> operator*(T v) const {
             auto tmp = this->clone();
             tmp *= v;
+            return tmp;
+        }
+        Array<T> &operator*=(const Array<T> &v) {
+            std::transform(std::execution::par_unseq, this->begin(), this->end(),
+                           v.ptr_.get(), this->begin(), std::multiplies<T>());
+            return *this;
+        }
+        Array<T> operator*(const Array<T> &rhs) const {
+            auto tmp = this->clone();
+            tmp *= rhs;
             return tmp;
         }
 
@@ -185,36 +194,19 @@ namespace tomocam {
             return rv;
         }
 
-        // addition
-        Array<T> &operator+=(T v) {
-            std::transform(std::execution::par_unseq, this->begin(), this->end(),
-                           ptr_.get(), [v](T x) { return x + v; });
-            return *this;
-        }
-
         Array<T> &operator+=(const Array<T> &v) {
             std::transform(std::execution::par_unseq, this->begin(), this->end(),
                            v.ptr_.get(), ptr_.get(), std::plus<T>());
             return *this;
         }
+
         Array<T> operator+(const Array<T> &rhs) const {
             auto tmp = this->clone();
             tmp += rhs;
             return tmp;
         }
 
-        Array<T> &operator+=(const Array<T> &rhs) const {
-            auto tmp = this->clone();
-            tmp += rhs;
-            return tmp;
-        }
-
         // subtraction
-        Array<T> &operator-=(T v) {
-            std::transform(std::execution::par_unseq, this->begin(), this->end(),
-                           ptr_.get(), [v](T x) { return x - v; });
-            return *this;
-        }
         Array<T> &operator-=(const Array<T> &v) {
             std::transform(std::execution::par_unseq, this->begin(), this->end(),
                            v.ptr_.get(), ptr_.get(), std::minus<T>());

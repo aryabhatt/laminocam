@@ -84,6 +84,12 @@ if (finufft_INCLUDE_DIR AND finufft_LIBRARIES)
         target_link_libraries(finufft::finufft INTERFACE ${finufft_LIBRARIES})
      endif()
 
+    if (cufinufft_LIBRARIES AND NOT TARGET finufft::cufinufft)
+        add_library(finufft::cufinufft INTERFACE IMPORTED GLOBAL)
+        target_include_directories(finufft::cufinufft INTERFACE ${finufft_INCLUDE_DIR})
+        target_link_libraries(finufft::cufinufft INTERFACE ${cufinufft_LIBRARIES})
+    endif()
+
      message(STATUS "Found finufft: ${finufft_LIBRARIES}")
 else()
     message(FATAL_ERROR "local installation of finufft not found")

@@ -39,60 +39,59 @@ namespace tomocam::gpu {
     using complex = cuda::std::complex<T>;
 
     template <typename T>
-    DeviceArray<T> forward(const DeviceArray<T> &volume, const PolarGrid<T> &pg) {
+    DeviceArray<T> forward(const DeviceArray<T> &volume, const gpu::PolarGrid<T> &pg) {
 
         // cast to complex
-        auto Ft = array::to_complex(volume);
+        auto Ft = gpu::array::to_complex(volume);
         DeviceArray<complex<T>> C(pg.dims());
 
         // NUFFT type-2: uniform -> nonuniform
         nufft::nufft3d2(C, Ft, pg);
 
         // ifft with fftshift
-        C = fftshift2(C);
-        C = fft::ifft2d(C);
-        C = ifftshift2(C);
+        C = gpu::fftshift2(C);
+        C = gpu::fft::ifft2d(C);
+        C = gpu::ifftshift2(C);
 
-        return array::to_real(C);
+        return gpu::array::to_real(C);
     }
 
     // Explicit instantiations for forward
     template DeviceArray<float> forward(const DeviceArray<float> &,
-                                        const PolarGrid<float> &);
+                                        const gpu::PolarGrid<float> &);
     template DeviceArray<double> forward(const DeviceArray<double> &,
-                                         const PolarGrid<double> &);
+                                         const gpu::PolarGrid<double> &);
 
     // -------------------------------------------------------------------------
     // backward: projections -> volume
     // -------------------------------------------------------------------------
 
     template <typename T>
-    DeviceArray<T> backward(const DeviceArray<T> &proj, const PolarGrid<T> &pg,
+    DeviceArray<T> backward(const DeviceArray<T> &proj, const gpu::PolarGrid<T> &pg,
                             const dims_t &recon_dims) {
         // cast to complex
         auto C = array::to_complex(proj);
 
         // 2D Fourier transform with fftshift
-        C = fftshift2(C);
-        C = fft::fft2d(C);
-        C = ifftshift2(C);
+        C = gpu::fftshift2(C);
+        C = gpu::fft::fft2d(C);
+        C = gpu::ifftshift2(C);
 
         DeviceArray<complex<T>> F(recon_dims);
         nufft::nufft3d1(C, F, pg);
 
         // scale and return real part
         auto result = array::to_real(F);
-        T scale = static_cast<T>(proj.ncols()) * static_cast<T>(proj.size());
-        array::scale_inplace(result, T(1) / scale);
-        return result;
+        T scale = static_cast<T>(proj.nrows() * proj.ncols());
+        return result / scale;
     }
 
     // Explicit instantiations for backward
     template DeviceArray<float> backward(const DeviceArray<float> &,
-                                         const PolarGrid<float> &,
+                                         const gpu::PolarGrid<float> &,
                                          const dims_t &);
     template DeviceArray<double> backward(const DeviceArray<double> &,
-                                          const PolarGrid<double> &,
+                                          const gpu::PolarGrid<double> &,
                                           const dims_t &);
 
 } // namespace tomocam::gpu
