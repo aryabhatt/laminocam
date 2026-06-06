@@ -1,11 +1,16 @@
-# Tomocam
+![Documentation Status](https://readthedocs.org/projects/laminocam/badge/?version=latest)
 
-A C++ library for tomographic reconstruction of magnetic field in thin material exhibiting magetic circular dichroism (MCD).
+![License](https://img.shields.io/badge/license-BSD%203--Clause-blue.svg)
+
+![CI](https://github.com/username/laminocam/actions/workflows/ci.yml/badge.svg)
+
+# LaminoCam
+
+A C++ library for tomographic reconstruction of laminographic data, with missing cone correction and Model-Based Iterative Reconstruction (MBIR) capabilities. Developed at Lawrence Berkeley National Laboratory.
 
 ## Overview
 
-Tomocam is a high-performance library developed at Lawrence Berkeley National Laboratory for advanced reconstruction of magnetic field in thin MCD materials. It provides forward and backward projection operators, iterative reconstruction algorithms, and Model-Based Iterative Reconstion.
-
+LaminoCam is a high-performance library developed at Lawrence Berkeley National Laboratory for advanced reconstruction of laminographic data. It provides forward and backward projection operators, iterative reconstruction algorithms, and Model-Based Iterative Reconstruction.
 The library is optimized for performance using:
 - OpenMP parallelization
 - Intel TBB (Threading Building Blocks)
@@ -17,7 +22,7 @@ The library is optimized for performance using:
 
 - **Forward/Backward Projection**: Efficient projection operators on polar grids
 - **Iterative Reconstruction**: Conjugate gradient and Nesterov accelerated gradient methods
-- **MBIR**: Model-Based Iterative Reconstruction with QGGMRF penalty
+- **MBIR**: Model-Based Iterative Reconstruction L1 regularization via Split Bregman method.
 - **TIFF I/O**: Read and write reconstruction data
 
 ## Requirements
@@ -52,19 +57,6 @@ cmake --preset macos
 cmake --build --preset macos
 ```
 
-### Build with Tests
-
-```bash
-# Linux with tests
-cmake --preset arch -DENABLE_TESTS=ON
-cmake --build --preset arch
-ctest --preset arch
-
-# macOS with tests
-cmake --preset macos -DENABLE_TESTS=ON
-cmake --build --preset macos
-```
-
 ## Usage
 
 ### Running Reconstruction
@@ -72,7 +64,7 @@ cmake --build --preset macos
 The reconstruction tool uses a TOML configuration file to specify input data and parameters:
 
 ```bash
-./build/recon <config.toml>
+./build/recon_scalar <config.toml>
 ```
 
 ### TOML Configuration File
@@ -81,25 +73,25 @@ Create a TOML file with the following structure:
 
 ```toml
 [input]
-filename = "/path/to/projections.tif"  # Input TIFF file with projection data
-angles = "/path/to/angles.txt"          # Text file with projection angles
+filename = "/path/to/projections.tif"   # Input TIFF file with projection data
+angles = "/path/to/angles.txt"              # Text file with projection angles
 
 [output]
-filename = "output.tiff"                # Output filename for reconstruction
+filename = "output.tiff"                       # Output filename for reconstruction
 
 [recon_params]
-max_iters = 50                          # Maximum outer iterations
-inner_iters = 5                         # Inner iterations (for split_bregman, and line-serach in NAG)
+max_iters = 100                          # Maximum outer iterations
+inner_iters = 1                         # Inner iterations (for split_bregman, and line-serach in NAG)
 tol = 1e-5                              # Convergence tolerance
 xtol = 1e-5                             # X-tolerance for convergence
-thickness = 64                          # Reconstruction volume thickness
+recon_dims = [21, 511, 511]                          # Reconstruction volume dimensions
 
 [recon_params.optimizer]
 method = "split_bregman"                # Optimizer: "split_bregman", "conjugate_gradient", or "nag_optimizer"
 
 # Parameters for split_bregman method
 [recon_params.optimizer.split_bregman]
-lambda = 0.01                           # Regularization parameter
+lambda = 0.1                           # Regularization parameter
 mu = 10                                 # Penalty parameter
 
 # Parameters for nag_optimizer method (if using)
@@ -109,38 +101,12 @@ mu = 10                                 # Penalty parameter
 ```
 
 **Notes:**
-- Angles can be in degrees or radians (automatically converted)
-- The angles file should contain one angle per line
+- Angles are expected be in degrees
+- The angles file should be is ASCII format and contain one angle per line
 - A template configuration file (`config_template.toml`) is generated automatically if no input is provided
 
-### Basic Example
-
-```cpp
-#include "tomocam.h"
-
-// Create polar grid geometry
-tomocam::PolarGrid<float> grid(/* parameters */);
-
-// Forward projection
-auto projections = tomocam::forward(volume, grid);
-
-// Backward projection
-auto reconstructed = tomocam::backward(projections, grid, volume_dims);
-
-// MBIR reconstruction
-auto mbir_result = tomocam::MBIR(
-    projections,
-    angles,
-    recon_dims,
-    max_iterations,
-    sigma,
-    p,
-    lambda,
-    gamma
-);
-```
-
-## API Documentation
+## Documentation
+Documentation is a work in progress. The latest version is available in readthedocs: https://laminocam.readthedocs.io/en/latest/
 
 ## License
 

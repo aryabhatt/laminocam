@@ -9,7 +9,6 @@ build:
     python: "3.11"
 
 python:
-  version: 3.11
   install:
     - requirements: docs/requirements.txt
 
@@ -17,7 +16,3 @@ sphinx:
   configuration: docs/conf.py
   fail_on_warning: false
 
-# Optionally build PDF and ePub formats
-formats:
-  - pdf
-  - epub
