@@ -34,7 +34,7 @@ namespace tomocam::opt {
     template <typename T>
     using Residual = std::function<T(const Array<T> &)>;
 
-    enum class Optimizer { SPLIT_BREGMAN, CG_SOLVER, NAG_OPT };
+    enum class Optimizer { SPLIT_BREGMAN, CG_SOLVER };
 
     template <typename T>
     struct OptimizerConfig {
@@ -42,10 +42,6 @@ namespace tomocam::opt {
         // split bregman parameters
         T lambda;
         T mu;
-        // NAG + QGMRF parameters
-        T lipschitz;
-        T sigma;
-        T p;
 
         // convergence parameters
         T tol;
@@ -55,13 +51,11 @@ namespace tomocam::opt {
 
         OptimizerConfig()
             : method(Optimizer::SPLIT_BREGMAN), lambda(0.1), mu(5.0), outer_max(50),
-              inner_max(4), tol(1e-5), xtol(1e-5), lipschitz(1.0), sigma(1.e+3),
-              p(1.2) {}
+              inner_max(4), tol(1e-5), xtol(1e-5) {}
         OptimizerConfig(Optimizer meth, T lam, T m, size_t out_max, size_t in_max,
-                        T tol1, T tol2, T L, T sig, T param)
+                        T tol1, T tol2)
             : method(meth), lambda(lam), mu(m), outer_max(out_max),
-              inner_max(in_max), tol(tol1), xtol(tol2), lipschitz(L), sigma(sig),
-              p(param) {}
+              inner_max(in_max), tol(tol1), xtol(tol2) {}
     };
 
     /** Split Bregman method for L1-regularized optimization problems
@@ -95,47 +89,6 @@ namespace tomocam::opt {
     template <typename T>
     Array<T> cgsolver(const Function<T> &A, const Array<T> &y, const Array<T> &x,
                       size_t max_iter, T tol, T xtol);
-
-    /**
-     * @brief Nesterov's Optimal Gradient Method with Boyd's momentum term
-     * @param grad Gradient function
-     * @param loss Loss function
-     * @param x Initial solution
-     * @param max_iters Maximum number of iterations
-     * @param lipschitz Lipschitz constant of the gradient
-     * @param tol Tolerance for convergence based on loss change
-     * @param xtol Tolerance for convergence based on solution change
-     * @param max_inner_iters Maximum number of inner iterations for line search
-     * @return Optimized solution
-     */
-    template <typename T>
-    Array<T> nagopt(const Function<T> &grad, const Residual<T> &loss, Array<T> &x,
-                    size_t max_iters, T lipschitz, T tol, T xtol,
-                    size_t max_inner_iters = 20);
-
-    /**
-     * @brief Estimate the Lipschitz constant of a gradient function using the power
-     * iteration method
-     * @param function representing the system matrix
-     * @param x0 reference for the size of the input
-     * @param max_iters Maximum number of iterations (default: 20)
-     * @param tol Tolerance for convergence (default: 1e-5)
-     * @return Estimated Lipschitz constant
-     */
-    template <typename T>
-    T lipschitz(const Function<T> &grad, const Array<T> &x0, size_t max_iters = 20,
-                T tol = 1e-5);
-
-    /**
-     * @brief Compute the gradient of the q-generalized Gaussian Markov Random Field
-     * (qGGMRF) prior
-     * @param x Input array
-     * @param g Output gradient array (updated in place)
-     * @param sigma Scale parameter
-     * @param p Exponent parameter
-     */
-    template <typename T>
-    void qggmrf(const Array<T> &x, Array<T> &g, T sigma, T p);
 
 } // namespace tomocam::opt
 
