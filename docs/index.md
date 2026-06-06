@@ -1,10 +1,10 @@
-# Tomocam Documentation
+# LaminoCam Documentation
 
-Welcome to the Tomocam documentation. Tomocam is a high-performance C++ library for tomographic reconstruction of magnetic fields in thin materials exhibiting magnetic circular dichroism (MCD).
+Welcome to the LaminoCam documentation. LaminoCam is a high-performance C++ library for tomographic reconstruction of sparse lamninographic data, with missing cone correction using L1 regularization via the Split Bregman method. 
 
 ## Overview
 
-Tomocam is a C++ laminography reconstruction library developed at Lawrence Berkeley National Laboratory. It provides command-line tools for iterative reconstruction using split Bregman optimization and conjugate gradient methods, with optional GPU acceleration.
+LaminoCam is a C++ laminography reconstruction library developed at Lawrence Berkeley National Laboratory. It provides command-line tools for iterative reconstruction using split Bregman optimization and conjugate gradient methods, with optional GPU acceleration.
 
 ```{toctree}
 :maxdepth: 2
@@ -39,7 +39,7 @@ contact
 
 ## Quick Links
 
-- **Installing Tomocam**: [Installation Guide](installation.md)
+- **Installing LaminoCam**: [Installation Guide](installation.md)
 - **Running Your First Reconstruction**: [Quick Start](quickstart.md)
 - **Configuring Reconstructions**: [Configuration Reference](configuration.md)
 - **Understanding the Math**: [Theory & Algorithms](theory.md)
