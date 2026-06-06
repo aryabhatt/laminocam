@@ -26,6 +26,7 @@
 #include <thrust/device_ptr.h>
 
 #include "array.h"
+#include "gpu/device_ptr.h"
 #include "gpu/memory.h"
 #include "gpu/utils.h"
 
@@ -114,23 +115,30 @@ namespace tomocam::gpu {
         /// Move assignment operator for efficient transfer of ownership.
         DeviceArray<T> &operator=(DeviceArray<T> &&rhs) = default;
 
-        /// Returns pointer to beginning of device memory.
-        /// WARNING: returned pointer is a device address; host dereference is
-        /// undefined behavior.
-        T *begin() { return dev_ptr_.get(); }
-        /// Returns const pointer to beginning of device memory.
-        /// WARNING: returned pointer is a device address; host dereference is
-        /// undefined behavior.
-        const T *begin() const { return dev_ptr_.get(); }
+        /// Implicit conversion operator to DevicePtr for use in CUDA kernels.
+        operator DevicePtr<T>() { return DevicePtr<T>(dev_ptr_.get(), dims_); }
+        operator DevicePtr<const T>() const {
+            return DevicePtr<const T>(dev_ptr_.get(), dims_);
+        }
 
-        /// Returns pointer to one past the end of device memory.
-        /// WARNING: returned pointer is a device address; host dereference is
-        /// undefined behavior.
-        T *end() { return dev_ptr_.get() + size_; }
-        /// Returns const pointer to one past the end of device memory.
-        /// WARNING: returned pointer is a device address; host dereference is
-        /// undefined behavior.
-        const T *end() const { return dev_ptr_.get() + size_; }
+        /// Not dereferenceable on the host.
+        T *data() { return dev_ptr_.get(); }
+        const T *data() const { return dev_ptr_.get(); }
+
+        /// Iterators for thrust compatibility.
+        thrust::device_ptr<T> begin() {
+            return thrust::device_ptr<T>(dev_ptr_.get());
+        }
+        thrust::device_ptr<const T> begin() const {
+            return thrust::device_ptr<const T>(dev_ptr_.get());
+        }
+
+        thrust::device_ptr<T> end() {
+            return thrust::device_ptr<T>(dev_ptr_.get() + size_);
+        }
+        thrust::device_ptr<const T> end() const {
+            return thrust::device_ptr<const T>(dev_ptr_.get() + size_);
+        }
 
         /// Returns total number of elements in the array.
         size_t size() const { return size_; }
@@ -149,6 +157,20 @@ namespace tomocam::gpu {
 
         /// Returns number of columns (third dimension).
         size_t ncols() const { return dims_.n3; }
+
+        /// arithmatic operators
+        DeviceArray<T> operator+(const DeviceArray<T> &rhs) const;
+        DeviceArray<T> &operator+=(const DeviceArray<T> &rhs);
+        DeviceArray<T> operator-(const DeviceArray<T> &rhs) const;
+        DeviceArray<T> &operator-=(const DeviceArray<T> &rhs);
+        DeviceArray<T> &operator*=(T scalar);
+        DeviceArray<T> operator*(const T &scalar) const;
+        DeviceArray<T> operator*(const DeviceArray<T> &rhs) const;
+        DeviceArray<T> &operator*=(const DeviceArray<T> &rhs);
+        DeviceArray<T> &operator/=(T scalar);
+        DeviceArray<T> operator/(const T &scalar) const;
+        DeviceArray<T> operator/(const DeviceArray<T> &rhs) const;
+        DeviceArray<T> &operator/=(const DeviceArray<T> &rhs);
     };
 
 } // namespace tomocam::gpu

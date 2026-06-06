@@ -4,6 +4,8 @@
 
 #include "array.h"
 #include "array_ops.h"
+#include "gpu/device_array_ops.h"
+#include "gpu/tomocam.h"
 #include "nufft.h"
 #include "timer.h"
 #include "tomocam.h"
@@ -23,26 +25,27 @@ int main() {
 
     auto pg = PolarGrid<float>(theta, 0, dims.n2, dims.n3);
     auto y = Array<float>::random(pg.x.dims());
-    auto yTy = array::dot(y, y);
 
     Timer timer;
 
-    // direct method
+    // CPU
     timer.start();
     auto diff = forward(f, pg) - y;
     auto err = array::norm2(diff) / static_cast<float>(y.size());
     timer.stop();
-    std::cout << std::format("Direct method time: {:.3f} s\n", timer.seconds());
-    std::cout << std::format("Direct method loss: {:.6f}\n", err);
+    std::cout << std::format("CPU time: {:.3f} s\n", timer.seconds());
+    std::cout << std::format("CPU loss: {:.6f}\n", err);
 
-    // Ajdoint method
-
-    auto yT = backproj(y, pg, dims);
+    // GPU
+    auto d_y = tomocam::gpu::DeviceArray<float>(y);
+    auto d_f = tomocam::gpu::DeviceArray<float>(f);
+    auto d_pg = tomocam::gpu::PolarGrid<float>(theta, 0, dims.n2, dims.n3);
     timer.start();
-    auto err2 = residual(f, yT, pg, yTy) / static_cast<float>(y.size());
+    auto d_diff = tomocam::gpu::forward(d_f, d_pg) - d_y;
+    auto d_err = tomocam::gpu::array::norm2(d_diff) / static_cast<float>(y.size());
     timer.stop();
-    std::cout << std::format("Adjoint method time: {:.3f} s\n", timer.seconds());
-    std::cout << std::format("Adjoint method loss: {:.6f}\n", err2);
+    std::cout << std::format("GPU time: {:.3f} s\n", timer.seconds());
+    std::cout << std::format("GPU loss: {:.6f}\n", d_err);
 
     return 0;
 }

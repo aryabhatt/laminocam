@@ -47,6 +47,28 @@ namespace tomocam::gpu {
     DeviceArray<T> backward(const DeviceArray<T> &proj, const PolarGrid<T> &pg,
                             const dims_t &recon_dims);
 
+    /**
+     * @brief GPU adjoint projection (no filter): projections -> volume.
+     *        Inline alias for backward(), matching the CPU backproj() interface.
+     * @param proj        Device array of projections.
+     * @param pg          GPU polar grid.
+     * @param recon_dims  Dimensions of the output volume.
+     * @return            Device array with shape recon_dims.
+     */
+    template <typename T>
+    inline DeviceArray<T> backproj(const DeviceArray<T> &proj, const PolarGrid<T> &pg,
+                                   const dims_t &recon_dims) {
+        return backward(proj, pg, recon_dims);
+    }
+
+    /**
+     * @brief GPU system matrix: (A^T A) x.
+     * @param x   Device array with shape (nz, ny, nx).
+     * @param pg  GPU polar grid.
+     * @return    Device array of shape (nz, ny, nx).
+     */
+    template <typename T>
+    DeviceArray<T> sysmat(const DeviceArray<T> &x, const PolarGrid<T> &pg);
 } // namespace tomocam::gpu
 
 #endif // TOMOCAM_GPU_PROJECTION_H

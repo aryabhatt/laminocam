@@ -26,10 +26,11 @@
 
 #include "dtypes.h"
 #include "gpu/device_array.h"
+#include "gpu/device_ptr.h"
+#include "gpu/utils.h"
 
 namespace tomocam::gpu {
 
-    /// GPU-resident polar grid for non-uniform Fourier sampling.
     /// Mirrors the interface of tomocam::PolarGrid but stores coordinate
     /// arrays in device memory as DeviceArray<T>.
     ///
@@ -58,7 +59,6 @@ namespace tomocam::gpu {
         /// @param ncols  Number of axial samples
         PolarGrid(const std::vector<T> &theta, T gamma, size_t nrows, size_t ncols);
     };
-
 } // namespace tomocam::gpu
 
 #endif // TOMOCAM_GPU_POLAR_GRID_H

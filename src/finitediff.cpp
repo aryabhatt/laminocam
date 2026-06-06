@@ -92,26 +92,4 @@ namespace tomocam::opt {
     template Array<float> divergence(const std::array<Array<float>, 3> &du);
     template Array<double> divergence(const std::array<Array<double>, 3> &du);
 
-    // laplacian of u
-    template <typename T>
-    Array<T> laplacian(const Array<T> &u) {
-        Array<T> laplacian = Array<T>::zeros(u.dims());
-#pragma omp parallel for collapse(3)
-        for (size_t slc = 1; slc < u.nslices() - 1; ++slc) {
-            for (size_t row = 1; row < u.nrows() - 1; ++row) {
-                for (size_t col = 1; col < u.ncols() - 1; ++col) {
-                    laplacian[{slc, row, col}] =
-                        u[{slc + 1, row, col}] + u[{slc - 1, row, col}] +
-                        u[{slc, row + 1, col}] + u[{slc, row - 1, col}] +
-                        u[{slc, row, col + 1}] + u[{slc, row, col - 1}] -
-                        6 * u[{slc, row, col}];
-                }
-            }
-        }
-        return laplacian;
-    }
-    // explicit instantiation for float and double
-    template Array<float> laplacian(const Array<float> &u);
-    template Array<double> laplacian(const Array<double> &u);
-
 } // namespace tomocam::opt

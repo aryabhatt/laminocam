@@ -48,8 +48,8 @@ namespace tomocam::opt {
                 pre[i] = 1.0E-06;
             }
         }
-        // turn off for now
         auto precond_apply = [&pre](const Array<T> &r) { return r / pre; };
+        // auto precond_apply = [](const Array<T> &r) { return r.clone(); };
 
         auto z = precond_apply(r);
         auto p = z.clone();
@@ -59,8 +59,11 @@ namespace tomocam::opt {
 
             auto Ap = A(p);
             auto pAp = array::dot(p, Ap);
-            if (std::abs(pAp) < 1.e-15) {
-                std::cerr << "pAp is close to zero\n";
+            auto pAp_thresh = T(100) * std::numeric_limits<T>::epsilon() *
+                              array::dot(p, p) * array::dot(Ap, Ap);
+            if (std::abs(pAp) < std::sqrt(pAp_thresh)) {
+                std::cerr << std::format("pAp is close to zero: {}, stopping CG\n",
+                                         pAp);
                 break;
             }
             auto alpha = rs_old / pAp;
@@ -76,7 +79,8 @@ namespace tomocam::opt {
             // calculate and print the residual and solution change
             auto res = std::sqrt(array::dot(r, r));
             auto dx = array::norm2(step) / (array::norm2(x) + T(1e-8));
-            std::cout << std::format("\t CG Iter: {}, residual: {}, dx: {:.6e}\n", iter, res, dx);
+            std::cout << std::format("\t CG Iter: {}, residual: {}, dx: {:.6e}\n",
+                                     iter, res, dx);
             if (std::sqrt(res) < tol) { break; }
             if (dx < xtol) { break; }
         }
@@ -89,6 +93,7 @@ namespace tomocam::opt {
                                           size_t, float, float);
     template Array<double> cgsolver<double>(const Function<double> &,
                                             const Array<double> &,
-                                            const Array<double> &, size_t, double, double);
+                                            const Array<double> &, size_t, double,
+                                            double);
 
 } // namespace tomocam::opt

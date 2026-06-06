@@ -18,61 +18,29 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <cuda.h>
-#include <cuda_runtime.h>
+#include <cuda/std/complex>
 
 #include "gpu/device_array.h"
-#include "gpu/device_ptr.h"
-#include "gpu/utils.h"
+#include "gpu/device_array_ops.h"
+#include "gpu/nufft.h"
+#include "gpu/polar_grid.h"
 
-namespace tomocam::gpu::opt {
-
-    constexpr int Nx = 1;
-    constexpr int Ny = 16;
-    constexpr int Nz = 16;
-
-    // Computes the central-difference gradient of u.
-    //   gz = du/dz  (slice direction)
-    //   gy = du/dy  (row direction)
-    //   gx = du/dx  (col direction)
-    template <typename T>
-    __global__ void gradient_kernel(DevicePtr<T> u, DevicePtr<T> gz,
-                                    DevicePtr<T> gy, DevicePtr<T> gx) {
-        auto idx = Index3D();
-        int i = idx.x;
-        int j = idx.y;
-        int k = idx.z;
-
-        int n1 = (int)u.dims().n1;
-        int n2 = (int)u.dims().n2;
-        int n3 = (int)u.dims().n3;
-
-        if (i < n1 && j < n2 && k < n3) {
-            if (i > 0 && i < n1 - 1)
-                gz(i, j, k) = (u(i + 1, j, k) - u(i - 1, j, k)) / T(2);
-            if (j > 0 && j < n2 - 1)
-                gy(i, j, k) = (u(i, j + 1, k) - u(i, j - 1, k)) / T(2);
-            if (k > 0 && k < n3 - 1)
-                gx(i, j, k) = (u(i, j, k + 1) - u(i, j, k - 1)) / T(2);
-        }
-    }
+namespace tomocam::gpu {
 
     template <typename T>
-    void gradient(const DeviceArray<T> &u, DeviceArray<T> &gz,
-                  DeviceArray<T> &gy, DeviceArray<T> &gx) {
-        auto d = u.dims();
-        dim3 block(Nx, Ny, Nz);
-        dim3 dims((unsigned)d.n1, (unsigned)d.n2, (unsigned)d.n3);
-        auto grid = make_grid(dims, block);
+    DeviceArray<T> sysmat(const DeviceArray<T> &x, const gpu::PolarGrid<T> &grid) {
 
-        gradient_kernel<T><<<grid, block>>>(u, gz, gy, gx);
-        SAFE_CALL(cudaGetLastError());
+        auto d_fz = gpu::array::to_complex(x);
+        auto d_cz = DeviceArray<cuda::std::complex<T>>(grid.dims());
+        // type-2 non-uniform FFT
+        gpu::nufft::nufft3d2(d_cz, d_fz, grid);
+        // type-1 non-uniform FFT
+        gpu::nufft::nufft3d1(d_cz, d_fz, grid);
+        return gpu::array::to_real(d_fz);
     }
-
-    // instantiate the template
-    template void gradient(const DeviceArray<float> &, DeviceArray<float> &,
-                           DeviceArray<float> &, DeviceArray<float> &);
-    template void gradient(const DeviceArray<double> &, DeviceArray<double> &,
-                           DeviceArray<double> &, DeviceArray<double> &);
-
-} // namespace tomocam::gpu::opt
+    // explicit instantiations
+    template DeviceArray<float> sysmat(const DeviceArray<float> &x,
+                                       const gpu::PolarGrid<float> &grid);
+    template DeviceArray<double> sysmat(const DeviceArray<double> &x,
+                                        const gpu::PolarGrid<double> &grid);
+} // namespace tomocam::gpu

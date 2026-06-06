@@ -29,7 +29,7 @@
 namespace tomocam::gpu::opt {
 
     template <typename T>
-    using gpuFunction = std::function<DeviceArray<T>>(const DeviceArray<T> &) > ;
+    using gpuFunction = std::function<DeviceArray<T>(const DeviceArray<T> &)>;
 
     /**
      * @brief GPU Conjugate Gradient solver for the preconditioned linear system
@@ -44,7 +44,29 @@ namespace tomocam::gpu::opt {
      */
     template <typename T>
     DeviceArray<T> cgsolver(const gpuFunction<T> &A, const DeviceArray<T> &y,
-                            const DeviceArray<T> &x0, size_t max_iter, T tol);
+                            const DeviceArray<T> &x0, size_t max_iter, T tol,
+                            T xtol);
+
+    /**
+     * @brief GPU Split Bregman solver for the sparse angle laminography problem:
+     *       min_x 0.5 ||A x - y||_2^2 + lambda * ||D x||_1
+     *
+     * @param A         GPU operator (Compostion of RadonAdjoint and Radon)
+     * @param y         Backprojection of the measured data: GPU array
+     * @param x0        Initial guess
+     * @param lambda    Regularization parameter for the L1 term
+     * @param mu        Bregman parameter (penalty parameter)
+     * @param outer_max  Maximum number of outer iterations (Bregman updates)
+     * @param inner_max  Maximum number of inner iterations (CG solver)
+     * @param tol       Convergence tolerance for the CG solver (residual norm)
+     * @param xtol      Convergence tolerance for the outer iterations (solution
+     * change)
+     * @return          Approximate solution x on the GPU
+     */
+    template <typename T>
+    DeviceArray<T> split_bregman(const gpuFunction<T> &A, const DeviceArray<T> &y,
+                                 const DeviceArray<T> &x0, T lambda, T mu,
+                                 size_t outer_max, size_t inner_max, T tol, T xtol);
 
 } // namespace tomocam::gpu::opt
 

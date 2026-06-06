@@ -79,5 +79,8 @@ namespace tomocam {
         outs << "dims_t(" << d.x() << ", " << d.y() << ", " << d.z() << ")";
         return outs;
     }
+
+    enum class PadType { LEFT, RIGHT, SYMMETRIC };
+
 } // namespace tomocam
 #endif // DTYPES__H

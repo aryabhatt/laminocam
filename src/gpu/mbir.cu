@@ -22,29 +22,27 @@
 #include <functional>
 #include <iostream>
 
-#include <thrust/device_vector.h>
-
-#include "config.h"
-#include "tomocam.h"
+#include "recon_params.h"
 
 #include "gpu/device_array.h"
 #include "gpu/device_array_ops.h"
-#include "gpu/optimize.h"
+#include "gpu/gpu_opt.h"
+#include "gpu/padding.h"
 #include "gpu/polar_grid.h"
-#include "pgu/padding.h"
+#include "gpu/projection.h"
 
 namespace tomocam::gpu {
     template <typename T>
-    DeviceArray<T> MBIR(const DeviceArray<T> &projs,
-                        const thrust::device_vector<T> &angles, T gamma,
-                        const dims_t &recon_dims, const ReconParams &params) {
+    DeviceArray<T> MBIR(const DeviceArray<T> &projs, const std::vector<T> &angles,
+                        T gamma, const dims_t &recon_dims,
+                        const ReconParams &params) {
 
         // normalize projections
-        T scale = static_cast<T>(1. / array::max(projs));
-        DeviceArray<T> y = array::scale(projs, scale);
+        T scale = array::max(projs);
+        DeviceArray<T> y = projs / scale;
 
         // zero-pad projections by sqrt(2) to avoid aliasing
-        T padding = static_cast<T>(params.PADDING_FACTOR);
+        float padding = static_cast<T>(params.PAD_FACTOR);
         y = pad2d(y, padding, PadType::SYMMETRIC);
 
         // adjust reconstruction dimensions
@@ -71,28 +69,29 @@ namespace tomocam::gpu {
         // precompute backprojection of the projections
         auto yT = backproj(y, polar_grid, out_dims);
 
-        auto recon = DeviceArray<T>(out_dims);
+        // define SPD operator for optimization
+        opt::gpuFunction<T> A = [&](const DeviceArray<T> &x) {
+            return sysmat<T>(x, polar_grid);
+        };
+
+        // initialize solution with zeros
         auto x0 = DeviceArray<T>(out_dims);
 
         // run optimization
+        auto recon = DeviceArray<T>(out_dims);
         switch (params.regularizer) {
             case Regularizer::UNCONSTRAINED: {
-                std::cout << "Starting unconstrained iterative reconstruction with "
-                             "CG ...\n";
-                opt::gpuFunction<T> A = [&](const DeviceArray<T> &x) {
-                    return sysmat<T>(x, polar_grid);
-                };
-                recon = opt::cgsolver<T>(A, yT, x0, params.maxIters, params.tol);
+                std::cout << "Starting unconstrained reconstruction with CG ...\n";
+                recon = opt::cgsolver<T>(A, yT, x0, params.maxIters, params.tol,
+                                         params.xtol);
                 break;
             }
             case Regularizer::SPLIT_BREGMAN: {
                 std::cout << "Starting MBIR with Split-Bregman method ...\n";
-                opt::Function<T> A = [&](const DeviceArray<T> &x) {
-                    return sysmat<T>(x, polar_grid);
-                };
                 recon = opt::split_bregman<T>(A, yT, x0, params.lambda, params.mu,
                                               params.maxIters, params.innerIters,
                                               params.tol, params.xtol);
+
                 break;
             }
             default: throw std::invalid_argument("Unsupported optimizer type");

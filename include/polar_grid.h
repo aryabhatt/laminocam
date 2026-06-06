@@ -21,6 +21,7 @@
 #define POLAR_GRID__H
 
 #include "array.h"
+#include "array_ops.h"
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -34,6 +35,7 @@ namespace tomocam {
         Array<T> x;
         Array<T> y;
         Array<T> z;
+        Array<T> w;
 
         // array dimensions for non-uniform points
         [[nodiscard]] dims_t dims() const { return x.dims(); }
@@ -73,6 +75,7 @@ namespace tomocam {
                     }
                 }
             }
+            w = Array<T>::ones(dims);
         }
     };
 

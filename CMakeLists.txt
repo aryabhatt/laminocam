@@ -7,7 +7,10 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 # Add cuda
 option(USE_GPU "Use GPU Acceleration" TRUE)
 if (${USE_GPU})
+  add_definitions(-DUSE_GPU)
   enable_language(CUDA)
+  find_package(CUDAToolkit REQUIRED)
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --extended-lambda")
 endif()
 
 # C++ std
@@ -24,17 +27,26 @@ endif()
 set(SRC
     src/conjgrad.cpp
     src/bregman.cpp
-    src/nagopt.cpp
     src/finitediff.cpp
     src/projection.cpp
     src/gradient.cpp
-    src/lipschitz.cpp
     src/mbir.cpp
-    src/qggmrf.cpp
    )
-#if (${USE_GPU})
-#  list(APPEND SRC src/gpu/polar_grid.cu)
-#endif()
+if (${USE_GPU})
+  list(APPEND SRC
+    src/gpu/array_ops.cu
+    src/gpu/device_array.cu
+    src/gpu/bregman.cu
+    src/gpu/conjgrad.cu
+    src/gpu/gradient.cu
+    src/gpu/mbir.cu
+    src/gpu/projection.cu
+    src/gpu/fftshift.cu
+    src/gpu/finitediff.cu
+    src/gpu/padding.cu
+    src/gpu/polar_grid.cu
+  )
+endif()
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 find_package(OpenMP)
@@ -65,6 +77,11 @@ target_link_libraries(tomocam_scalar PUBLIC FFTW::float)
 target_link_libraries(tomocam_scalar PUBLIC finufft::finufft)
 target_link_libraries(tomocam_scalar PUBLIC TBB::tbb)
 target_link_libraries(tomocam_scalar PUBLIC TIFF::TIFF)
+if (${USE_GPU})
+  target_link_libraries(tomocam_scalar PUBLIC finufft::cufinufft)
+  target_include_directories(tomocam_scalar PUBLIC ${CUDAToolkit_INCLUDE_DIRS})
+  target_link_libraries(tomocam_scalar PUBLIC CUDA::cudart)
+endif()
 set_property(TARGET tomocam_scalar PROPERTY CXX_STANDARD 20)
 
 # recon executable
@@ -74,6 +91,13 @@ target_link_libraries(recon_scalar PRIVATE tomocam_scalar tomlplusplus::tomlplus
 install(TARGETS recon_scalar DESTINATION bin)
 install(TARGETS tomocam_scalar DESTINATION lib)
 option(ENABLE_TESTS "Enable tests" OFF)
+
+# GPU memory verification checkpoints (guarded by #ifdef TOMOCAM_MEMORY_VERIFY)
+option(TOMOCAM_MEMORY_VERIFY "Enable GPU memory verification checkpoints in bregman/cgsolver" OFF)
+if (TOMOCAM_MEMORY_VERIFY)
+    target_compile_definitions(tomocam_scalar PRIVATE TOMOCAM_MEMORY_VERIFY)
+    message(STATUS "TOMOCAM_MEMORY_VERIFY: GPU memory checkpoints enabled")
+endif()
 
 if (${ENABLE_TESTS})
     enable_testing()

@@ -1,7 +1,6 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
-#include <nlohmann/json.hpp>
 #include <ostream>
 #include <string>
 using json = nlohmann::json;
@@ -31,11 +30,6 @@ int main(int argc, char **argv) {
     }
 
     // get input data
-    json config = json::parse(json_file);
-    std::string filename = config["filename"];
-    std::string angles = config["angles"];
-    std::string output = config["output"];
-    float gamma = config["gamma"];
 
     tomocam::Timer t0;
     t0.start();

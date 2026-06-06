@@ -26,6 +26,7 @@
 #include "array.h"
 #include "array_ops.h"
 #include "config.h"
+#include "density_comp.h"
 #include "optimize.h"
 #include "padding.h"
 #include "polar_grid.h"
@@ -37,7 +38,7 @@ namespace tomocam {
                   const dims_t &recon_dims, const ReconParams &params) {
 
         // zero-pad reconstruction dimensions by sqrt(2) to avoid aliasing
-        T padding = static_cast<T>(params.PAD_FACTOR);
+        float padding = static_cast<T>(params.PAD_FACTOR);
         auto pad = [padding](size_t n) {
             size_t npad = 2 * (static_cast<size_t>(n * (padding - 1)) / 2);
             return n + npad;
@@ -49,8 +50,8 @@ namespace tomocam {
         out_dims.n3 = pad(recon_dims.n3);
 
         std::cout << std::format(
-            "Reconstruction dimensions (with padding): {} x {} x {}\n",
-            out_dims.n1, out_dims.n2, out_dims.n3);
+            "Reconstruction dimensions (with padding): {} x {} x {}\n", out_dims.n1,
+            out_dims.n2, out_dims.n3);
 
         // accumulate backprojections across all datasets
         size_t n_datasets = datasets.size();
@@ -98,7 +99,8 @@ namespace tomocam {
             case Regularizer::UNCONSTRAINED: {
                 std::cout << "Starting unconstrained iterative reconstruction with "
                              "CG ...\n";
-                recon = opt::cgsolver<T>(ATA, yT, x0, params.maxIters, params.tol, params.xtol);
+                recon = opt::cgsolver<T>(ATA, yT, x0, params.maxIters, params.tol,
+                                         params.xtol);
                 break;
             }
             case Regularizer::SPLIT_BREGMAN: {
@@ -119,8 +121,8 @@ namespace tomocam {
     template Array<float> MBIR<float>(const std::vector<Dataset_t<float>> &datasets,
                                       const dims_t &recon_dims,
                                       const ReconParams &cfg);
-    template Array<double> MBIR<double>(const std::vector<Dataset_t<double>> &datasets,
-                                        const dims_t &recon_dims,
-                                        const ReconParams &cfg);
+    template Array<double>
+    MBIR<double>(const std::vector<Dataset_t<double>> &datasets,
+                 const dims_t &recon_dims, const ReconParams &cfg);
 
 } // namespace tomocam

@@ -18,6 +18,8 @@
  *---------------------------------------------------------------------------------
  */
 
+#include <execution>
+
 #include "array.h"
 #include "array_ops.h"
 #include "dtypes.h"
@@ -69,7 +71,10 @@ namespace tomocam {
         C = fft::fftshift2(C);
         C = fft::fft2(C);
         C = fft::ifftshift2(C);
-        if (use_filter) { apply_filter(C, filter_type); }
+
+        // apply density compensation
+        std::transform(std::execution::par_unseq, C.begin(), C.end(), pg.w.begin(),
+                       C.begin(), [](std::complex<T> c, T w) { return c * w; });
 
         // nufft
         Array<std::complex<T>> F(recon_dims);
@@ -77,7 +82,7 @@ namespace tomocam {
 
         // crop image
         // scale
-        T scale = static_cast<T>(proj.ncols() * proj.size());
+        T scale = static_cast<T>(proj.ncols() * proj.nrows());
         return array::to_real<T>(F) / scale;
     }
 

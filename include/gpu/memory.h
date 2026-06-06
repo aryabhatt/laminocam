@@ -106,20 +106,32 @@ namespace tomocam::gpu {
         dim3 dims_;
         T *ptr_;
 
+        __forceinline__ __device__ unsigned get_dynamic_smem_size() {
+            unsigned size;
+            asm volatile("mov.u32 %0, %dynamic_smem_size;" : "=r"(size));
+            return size;
+        }
+
       public:
         __device__ __inline__ SharedMemory(dim3 dims) : dims_(dims) {
             extern __shared__ unsigned char shared_mem[];
+#ifdef DEBUG
+            unsigned expected_size = dims_.x * dims_.y * dims_.z * sizeof(T);
+            unsigned actual_size = get_dynamic_smem_size();
+            assert(expected_size <= actual_size);
+#endif
             ptr_ = reinterpret_cast<T *>(shared_mem);
         }
-        __device__ __inline__ T &operator()(int x, int y, int z) {
-            return ptr_[x + dims_.x * (y + dims_.y * z)];
+        __device__ __inline__ T &operator()(unsigned x, unsigned y, unsigned z) {
+            return ptr_[x * dims_.y * dims_.z + y * dims_.z + z];
         }
-        __device__ __inline__ const T &operator()(int x, int y, int z) const {
-            return ptr_[x + dims_.x * (y + dims_.y * z)];
+        __device__ __inline__ const T &operator()(unsigned x, unsigned y,
+                                                  unsigned z) const {
+            return ptr_[x * dims_.y * dims_.z + y * dims_.z + z];
         }
 
-        __device__ __inline__ T &operator()(int idx) { return ptr_[idx]; }
-        __device__ __inline__ const T &operator()(int idx) const {
+        __device__ __inline__ T &operator()(unsigned idx) { return ptr_[idx]; }
+        __device__ __inline__ const T &operator()(unsigned idx) const {
             return ptr_[idx];
         }
     };

@@ -29,6 +29,11 @@
 #include "tomocam.h"
 #include "timer.h"
 
+#ifdef USE_GPU
+#include "gpu/tomocam.h"
+#include "gpu/cufinufft_plan_cache.h"
+#include "gpu/cufft_plan_cache.h"
+#endif
 
 using namespace tomocam;
 
@@ -47,9 +52,9 @@ int main(int argc, char **argv) {
     // parse input datasets
     auto datasets = tomocam::parse_input_datasets<float>(config);
     // parse reconstruction parameters
-    auto params = tomocam::ReconParams(config);
+    auto params = tomocam::parse_recon_params(config);
     // output parameters
-    auto output = tomocam::OutputParams(config);
+    auto output = tomocam::parse_output_params(config);
 
     // set reconstruction dimensions
     dims_t recon_dims = params.recon_dims;
@@ -62,7 +67,17 @@ int main(int argc, char **argv) {
 
     tomocam::Timer t0;
     t0.start();
+
+#ifdef USE_GPU
+    std::cout << "Running reconstruction on GPU...\n";
+    auto recon = tomocam::gpu::MBIR<float>(datasets, recon_dims, params);
+    tomocam::gpu::nufft::plans::cache<float>.clear();
+    tomocam::gpu::fft::cache::plans<float>.clear();
+    cudaDeviceReset();
+#else
+    std::cout << "Running reconstruction on CPU...\n";
     auto recon = tomocam::MBIR<float>(datasets, recon_dims, params);
+#endif
     t0.stop();
     std::cout << std::format("Reconstruction completed in {:.2f} seconds.\n",
                              t0.seconds());

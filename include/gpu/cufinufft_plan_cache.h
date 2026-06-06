@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <unordered_map>
 
-#include "cufinufft_plan.h"
+#include "gpu/cufinufft_plan.h"
 
 namespace tomocam::gpu::nufft {
 
@@ -26,6 +26,13 @@ namespace tomocam::gpu::nufft {
         cuFinufftPlanCache &operator=(const cuFinufftPlanCache &) = delete;
         cuFinufftPlanCache(cuFinufftPlanCache &&) = delete;
         cuFinufftPlanCache &operator=(cuFinufftPlanCache &&) = delete;
+
+        // Destroy all cached plans while the CUDA context is still live.
+        // Call before cudaDeviceReset() to avoid cudaErrorCudartUnloading on exit.
+        void clear() {
+            std::lock_guard<std::mutex> lock(cache_mutex_);
+            plan_cache_.clear();
+        }
 
         cuFinfftPlanWrapper<T> &get_plan(int type, int dim,
                                          std::array<int64_t, 3> n_modes, int iflag,
