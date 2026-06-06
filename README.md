@@ -1,7 +1,5 @@
 ![Documentation Status](https://readthedocs.org/projects/laminocam/badge/?version=latest)
 
-![License](https://img.shields.io/badge/license-BSD%203--Clause-blue.svg)
-
 ![CI](https://github.com/username/laminocam/actions/workflows/ci.yml/badge.svg)
 
 # LaminoCam
@@ -73,31 +71,26 @@ Create a TOML file with the following structure:
 
 ```toml
 [input]
-filename = "/path/to/projections.tif"   # Input TIFF file with projection data
-angles = "/path/to/angles.txt"              # Text file with projection angles
+filename = "/path/to/projections.tif"
+angles = "/path/to/angles.txt" 
 
 [output]
-filename = "output.tiff"                       # Output filename for reconstruction
+filename = "path/to/output.tiff"
 
 [recon_params]
-max_iters = 100                          # Maximum outer iterations
-inner_iters = 1                         # Inner iterations (for split_bregman, and line-serach in NAG)
-tol = 1e-5                              # Convergence tolerance
-xtol = 1e-5                             # X-tolerance for convergence
-recon_dims = [21, 511, 511]                          # Reconstruction volume dimensions
+max_iters = 100
+tol = 1e-5
+xtol = 1e-5
+recon_dims = [21, 511, 511]
 
-[recon_params.optimizer]
-method = "split_bregman"                # Optimizer: "split_bregman", "conjugate_gradient", or "nag_optimizer"
+[recon_params.regularizer]
+method = "split_bregman"
 
 # Parameters for split_bregman method
-[recon_params.optimizer.split_bregman]
-lambda = 0.1                           # Regularization parameter
-mu = 10                                 # Penalty parameter
-
-# Parameters for nag_optimizer method (if using)
-# [recon_params.optimizer.nag_optimizer]
-# sigma = 0.1
-# p = 1.2
+[recon_params.regularizer.split_bregman]
+inner_iters = 1
+lambda = 0.1
+mu = 10
 ```
 
 **Notes:**
