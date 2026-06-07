@@ -1,6 +1,6 @@
 ![Documentation Status](https://readthedocs.org/projects/laminocam/badge/?version=latest)
 
-![Build Status](https://github.com/aryabhatt/laminocam/actions/workflows/build.yml/badge.svg)
+![Build Status](https://github.com/aryabhatt/laminocam/actions/workflows/build.yaml/badge.svg)
 
 # LaminoCam
 
