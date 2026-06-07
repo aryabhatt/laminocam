@@ -44,6 +44,7 @@ namespace tomocam::gpu::opt {
 
         template <typename Tuple>
         __host__ __device__ T operator()(const Tuple &t) const {
+            using namespace cuda::std;
             T dx = thrust::get<0>(t);
             T b = thrust::get<1>(t);
             T sk = thrust::get<2>(t);
