@@ -108,7 +108,7 @@ namespace tomocam::gpu {
 
         __forceinline__ __device__ unsigned get_dynamic_smem_size() {
             unsigned size;
-            asm volatile("mov.u32 %0, %dynamic_smem_size;" : "=r"(size));
+            asm volatile("mov.u32 %0, %%dynamic_smem_size;" : "=r"(size));
             return size;
         }
 
