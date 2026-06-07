@@ -79,6 +79,7 @@ target_link_libraries(tomocam_scalar PUBLIC TBB::tbb)
 target_link_libraries(tomocam_scalar PUBLIC TIFF::TIFF)
 if (${USE_GPU})
   target_link_libraries(tomocam_scalar PUBLIC finufft::cufinufft)
+  target_link_libraries(tomocam_scalar PUBLIC CUDA::cufft)
   target_include_directories(tomocam_scalar PUBLIC ${CUDAToolkit_INCLUDE_DIRS})
   target_link_libraries(tomocam_scalar PUBLIC CUDA::cudart)
 endif()
@@ -88,8 +89,12 @@ set_property(TARGET tomocam_scalar PROPERTY CXX_STANDARD 20)
 add_executable(recon_scalar src/recon.cpp)
 target_link_libraries(recon_scalar PRIVATE tomocam_scalar tomlplusplus::tomlplusplus)
 
-install(TARGETS recon_scalar DESTINATION bin)
-install(TARGETS tomocam_scalar DESTINATION lib)
+install(TARGETS recon_scalar RUNTIME DESTINATION bin)
+install(TARGETS tomocam_scalar LIBRARY DESTINATION lib)
+set_target_properties(recon_scalar tomocam_scalar PROPERTIES
+    INSTALL_RPATH "\$ORIGIN/../lib"
+    BUILD_WITH_INSTALL_RPATH TRUE
+)
 option(ENABLE_TESTS "Enable tests" OFF)
 
 # GPU memory verification checkpoints (guarded by #ifdef TOMOCAM_MEMORY_VERIFY)

@@ -82,28 +82,6 @@
         },
         {
             "name": "nersc",
-            "displayName": "Perlmutter Debug",
-            "description": "Debug build for NERSC Perlmutter",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/debug",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_C_COMPILER": "gcc",
-                "CMAKE_CXX_COMPILER": "g++",
-                "finufft_DIR": "/global/common/software/als/finufft/",
-                "ENABLE_TESTS": {
-                    "type": "BOOL",
-                    "value": "ON"
-                }
-            },
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Linux"
-            }
-        },
-        {
-            "name": "nersc-release",
             "displayName": "Perlmutter Release",
             "description": "Release build for NERSC Perlmutter",
             "generator": "Ninja",
@@ -112,10 +90,15 @@
                 "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_C_COMPILER": "gcc",
                 "CMAKE_CXX_COMPILER": "g++",
+                "CMAKE_CUDA_HOST_COMPILER":"g++",
                 "finufft_DIR": "/global/common/software/als/finufft/",
                 "ENABLE_TESTS": {
                     "type": "BOOL",
                     "value": "OFF"
+                },
+                "USE_GPU": {
+                    "type": "BOOL",
+                    "value": "ON"
                 }
             },
             "condition": {
@@ -141,31 +124,11 @@
 
     ],
     "buildPresets": [
-        {
-            "name": "macos",
-            "configurePreset": "macos",
-            "cleanFirst": false
-        },
-        {
-            "name": "arch",
-            "configurePreset": "arch"
-        },
-        {
-            "name": "arch-release",
-            "configurePreset": "arch-release"
-        },
-        {
-            "name": "nersc",
-            "configurePreset": "nersc"
-        },
-        {
-            "name": "nersc-release",
-            "configurePreset": "nersc-release"
-        },
-        {
-            "name": "mem-verify",
-            "configurePreset": "mem-verify"
-        }
+        { "name": "macos", "configurePreset": "macos", "cleanFirst": false },
+        { "name": "arch", "configurePreset": "arch" },
+        { "name": "arch-release", "configurePreset": "arch-release" },
+        { "name": "nersc", "configurePreset": "nersc" },
+        { "name": "mem-verify", "configurePreset": "mem-verify" }
     ],
     "testPresets": [
       {
@@ -225,14 +188,6 @@
             "steps": [
                 { "name": "nersc", "type": "configure" },
                 { "name": "nersc", "type": "build" }
-            ]
-        },
-        {
-            "name": "nersc-release",
-            "displayName": "Full workflow for nersc release",
-            "steps": [
-                { "name": "nersc-release", "type": "configure" },
-                { "name": "nersc-release", "type": "build" }
             ]
         },
         {

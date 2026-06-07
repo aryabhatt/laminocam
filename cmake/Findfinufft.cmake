@@ -16,7 +16,7 @@ include(FindPackageHandleStandardArgs)
 
 # try to find the local finufft installation
 set(finufft_SEARCH_PATHS
-    ~/finufft
+    ${finufft_DIR}
     /usr/local
     /opt/homebrew
     /opt/local
@@ -28,6 +28,7 @@ find_path(finufft_INCLUDE_DIR
     NAMES 
         finufft.h 
     HINTS 
+        ${finufft_DIR} 
         $ENV{finufft_DIR} 
         ${CMAKE_PREFIX_PATH}
     PATH_SUFFIXES 
@@ -40,6 +41,7 @@ find_library(finufft_LIBRARIES
     NAMES 
         finufft 
     HINTS 
+        ${finufft_DIR} 
         $ENV{finufft_DIR} 
         ${CMAKE_PREFIX_PATH}
     PATH_SUFFIXES 
