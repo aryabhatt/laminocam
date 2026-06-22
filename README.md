@@ -99,7 +99,7 @@ mu = 10
 - A template configuration file (`config_template.toml`) is generated automatically if no input is provided
 
 ## Documentation
-Documentation is a work in progress. The latest version is available in readthedocs: https://laminocam.readthedocs.io/en/latest/
+The latest version is available in readthedocs: https://laminocam.readthedocs.io/en/latest/
 
 ## License
 
