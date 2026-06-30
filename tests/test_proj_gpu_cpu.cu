@@ -60,7 +60,6 @@ namespace tomocam {
 #include "gpu/device_array_ops.h"
 #include "gpu/polar_grid.h"
 #include "gpu/projection.h"
-#include "gpu/sysmat.h"
 
 using namespace tomocam;
 using tomocam::gpu::DeviceArray;
@@ -75,7 +74,10 @@ static int g_fail = 0;
 static void check(bool cond, const std::string &name, float rel_err) {
     std::string tag = cond ? "  PASS" : "  FAIL";
     std::cout << std::format("{}  {}  (rel_err = {:.4e})\n", tag, name, rel_err);
-    if (cond) ++g_pass; else ++g_fail;
+    if (cond)
+        ++g_pass;
+    else
+        ++g_fail;
 }
 
 static Array<float> random_array(dims_t d) {
@@ -92,7 +94,7 @@ static float rel_error(const Array<float> &cpu, const Array<float> &gpu) {
     for (size_t i = 0; i < cpu.size(); ++i) {
         float d = cpu[i] - gpu[i];
         diff_sq += d * d;
-        ref_sq  += cpu[i] * cpu[i];
+        ref_sq += cpu[i] * cpu[i];
     }
     return (ref_sq > 0.f) ? std::sqrt(diff_sq / ref_sq) : std::sqrt(diff_sq);
 }
@@ -102,15 +104,17 @@ static float rel_error(const Array<float> &cpu, const Array<float> &gpu) {
 // -------------------------------------------------------------------------
 
 static constexpr size_t NTHETA = 141;
-static constexpr size_t N      = 64;
-static constexpr float  THETA_MIN = -1.222f;
-static constexpr float  THETA_MAX =  1.222f;
-static constexpr float  REL_TOL   =  1e-2f;   // 1 % tolerance
+static constexpr size_t Nz = 63;
+static constexpr size_t N = 255;
+static constexpr float THETA_MIN = -1.222f;
+static constexpr float THETA_MAX = 1.222f;
+static constexpr float REL_TOL = 5e-5f;
 
 static std::vector<float> make_theta() {
     std::vector<float> theta(NTHETA);
     for (size_t i = 0; i < NTHETA; ++i)
-        theta[i] = THETA_MIN + i * (THETA_MAX - THETA_MIN) / static_cast<float>(NTHETA - 1);
+        theta[i] =
+            THETA_MIN + i * (THETA_MAX - THETA_MIN) / static_cast<float>(NTHETA - 1);
     return theta;
 }
 
@@ -118,8 +122,7 @@ static std::vector<float> make_theta() {
 // Test: forward  CPU vs GPU
 // -------------------------------------------------------------------------
 
-void test_forward(const Array<float> &vol,
-                  const PolarGrid<float> &cpu_pg,
+void test_forward(const Array<float> &vol, const PolarGrid<float> &cpu_pg,
                   const tomocam::gpu::PolarGrid<float> &gpu_pg) {
 
     // CPU
@@ -127,7 +130,7 @@ void test_forward(const Array<float> &vol,
 
     // GPU: upload volume, run, download
     DeviceArray<float> d_vol(vol);
-    auto d_proj  = tomocam::gpu::forward(d_vol, gpu_pg);
+    auto d_proj = tomocam::gpu::forward(d_vol, gpu_pg);
     auto gpu_proj = d_proj.to_host();
 
     float err = rel_error(cpu_proj, gpu_proj);
@@ -138,17 +141,15 @@ void test_forward(const Array<float> &vol,
 // Test: backward (adjoint)  CPU vs GPU
 // -------------------------------------------------------------------------
 
-void test_backward(const Array<float> &proj,
-                   const PolarGrid<float> &cpu_pg,
-                   const tomocam::gpu::PolarGrid<float> &gpu_pg,
-                   dims_t vol_dims) {
+void test_backward(const Array<float> &proj, const PolarGrid<float> &cpu_pg,
+                   const tomocam::gpu::PolarGrid<float> &gpu_pg, dims_t vol_dims) {
 
     // CPU (unfiltered backprojection)
     auto cpu_vol = tomocam::backward(proj, cpu_pg, vol_dims);
 
     // GPU: upload projections, run, download
     DeviceArray<float> d_proj(proj);
-    auto d_vol  = tomocam::gpu::backward(d_proj, gpu_pg, vol_dims);
+    auto d_vol = tomocam::gpu::backward(d_proj, gpu_pg, vol_dims);
     auto gpu_vol = d_vol.to_host();
 
     float err = rel_error(cpu_vol, gpu_vol);
@@ -159,8 +160,7 @@ void test_backward(const Array<float> &proj,
 // Test: sysmat  CPU vs GPU
 // -------------------------------------------------------------------------
 
-void test_sysmat(const Array<float> &vol,
-                 const PolarGrid<float> &cpu_pg,
+void test_sysmat(const Array<float> &vol, const PolarGrid<float> &cpu_pg,
                  const tomocam::gpu::PolarGrid<float> &gpu_pg) {
 
     // CPU
@@ -168,7 +168,7 @@ void test_sysmat(const Array<float> &vol,
 
     // GPU
     DeviceArray<float> d_vol(vol);
-    auto d_sm  = tomocam::gpu::sysmat(d_vol, gpu_pg);
+    auto d_sm = tomocam::gpu::sysmat(d_vol, gpu_pg);
     auto gpu_sm = d_sm.to_host();
 
     float err = rel_error(cpu_sm, gpu_sm);
@@ -181,23 +181,24 @@ void test_sysmat(const Array<float> &vol,
 
 int main() {
     std::cout << std::format("=== CPU vs GPU projection tests ===\n");
-    std::cout << std::format("    volume: {{1, {}, {}}}  |  {} angles in [{:.3f}, {:.3f}] rad\n\n",
-                             N, N, NTHETA, THETA_MIN, THETA_MAX);
+    std::cout << std::format(
+        "    volume: {{{}, {}, {}}}  |  {} angles in [{:.3f}, {:.3f}] rad\n\n", Nz,
+        N, N, NTHETA, THETA_MIN, THETA_MAX);
 
-    dims_t vol_dims  = {1, N, N};
-    auto   theta     = make_theta();
+    dims_t vol_dims = {Nz, N, N};
+    auto theta = make_theta();
 
     // Build both grids from the same angle set
-    PolarGrid<float>            cpu_pg(theta, 0.f, N, N);
+    PolarGrid<float> cpu_pg(theta, 0.f, N, N);
     tomocam::gpu::PolarGrid<float> gpu_pg(theta, 0.f, N, N);
 
     // Random volume and random projections (same seed → reproducible)
-    auto vol  = random_array(vol_dims);
-    auto proj = random_array(cpu_pg.dims());   // shape: {NTHETA, N, N}
+    auto vol = Array<float>::random(vol_dims);
+    auto proj = random_array(cpu_pg.dims()); // shape: {NTHETA, N, N}
 
-    test_forward (vol,  cpu_pg, gpu_pg);
+    test_forward(vol, cpu_pg, gpu_pg);
     test_backward(proj, cpu_pg, gpu_pg, vol_dims);
-    test_sysmat  (vol,  cpu_pg, gpu_pg);
+    test_sysmat(vol, cpu_pg, gpu_pg);
 
     std::cout << std::format("\nResults: {} passed, {} failed\n", g_pass, g_fail);
     return (g_fail == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
