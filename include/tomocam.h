@@ -28,6 +28,7 @@
 #include "dtypes.h"
 #include "polar_grid.h"
 #include "tiff.h"
+#include "toeplitz.h"
 
 namespace tomocam {
     /**
@@ -94,6 +95,15 @@ namespace tomocam {
      */
     template <typename T>
     Array<T> sysmat(const Array<T> &x, const PolarGrid<T> &grid);
+
+    /**
+     * @brief Toeplitz (PSF convolution) equivalent of system matrix y = A^T A x
+     * @param x Input volume data as an Array.
+     * @param psf Pre-computed PointSpreadFunction for the projection geometry.
+     * @return The equivalent of A^T(A*x) result as an Array.
+     */
+    template <typename T>
+    Array<T> sysmat(const Array<T> &x, const PointSpreadFunction<T> &psf);
 
     /**
      * @brief Performs Model-Based Iterative Reconstruction (MBIR) of volume data.
