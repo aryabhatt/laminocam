@@ -18,7 +18,6 @@
  *---------------------------------------------------------------------------------
  */
 
-
 #ifndef CUFINUFFT_PLAN_H
 #define CUFINUFFT_PLAN_H
 
@@ -45,7 +44,7 @@ namespace tomocam::gpu::nufft {
         // make plan with double precision, with a default tolerance of 1e-14
         static int makeplan(int type, int dim, int64_t *n_modes, int iflag,
                             int ntrans, plan_type *plan, cufinufft_opts *opts) {
-            constexpr double TOL = 1e-14;
+            constexpr double TOL = 1e-12;
             return cufinufft_makeplan(type, dim, n_modes, iflag, ntrans, TOL, plan,
                                       opts);
         }
@@ -108,7 +107,6 @@ namespace tomocam::gpu::nufft {
             }
             cufinufft_opts opts;
             cufinufft_default_opts(&opts);
-            opts.upsampfac = 1.25;
             opts.gpu_device_id = gpu_id;
             int ierr =
                 Traits::makeplan(type, dim, n_modes.data(), iflag, 1, &plan, &opts);
