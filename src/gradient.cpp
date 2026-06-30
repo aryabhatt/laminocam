@@ -25,25 +25,34 @@
 #include "dtypes.h"
 #include "nufft.h"
 #include "polar_grid.h"
+#include "toeplitz.h"
 #include "tomocam.h"
 
 namespace tomocam {
     template <typename T>
     Array<T> sysmat(const Array<T> &x, const PolarGrid<T> &grid) {
-        // cast to complex
-        T scale = static_cast<T>(grid.x.nslices() * grid.x.ncols());
+
+        T scale = static_cast<T>(grid.dims().n2 * grid.dims().n3);
         auto xcmplx = array::to_complex(x);
         auto ccmplx = Array<std::complex<T>>(grid.dims());
         nufft::nufft3d2(ccmplx, xcmplx, grid);
-        // density compensation
         std::transform(std::execution::par_unseq, ccmplx.begin(), ccmplx.end(),
                        grid.w.begin(), ccmplx.begin(),
                        [](const std::complex<T> &c, T w) { return c * w; });
         nufft::nufft3d1(ccmplx, xcmplx, grid);
-        // return array::to_real(xcmplx) / scale;
-        return array::to_real(xcmplx);
+        return array::to_real(xcmplx) / scale;
     }
     // Explicit instantiations
     template Array<float> sysmat(const Array<float> &, const PolarGrid<float> &);
     template Array<double> sysmat(const Array<double> &, const PolarGrid<double> &);
+
+    // use Toeplitz method to compute the system matrix
+    template <typename T>
+    Array<T> sysmat(const Array<T> &x, const PointSpreadFunction<T> &psf) {
+        return psf.convolve(x);
+    }
+    template Array<float> sysmat(const Array<float> &,
+                                 const PointSpreadFunction<float> &);
+    template Array<double> sysmat(const Array<double> &,
+                                  const PointSpreadFunction<double> &);
 } // namespace tomocam

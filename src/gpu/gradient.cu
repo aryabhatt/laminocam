@@ -30,13 +30,16 @@ namespace tomocam::gpu {
     template <typename T>
     DeviceArray<T> sysmat(const DeviceArray<T> &x, const gpu::PolarGrid<T> &grid) {
 
+        // scale
+        T scale = static_cast<T>(grid.dims().n2 * grid.dims().n3);
+
         auto d_fz = gpu::array::to_complex(x);
         auto d_cz = DeviceArray<cuda::std::complex<T>>(grid.dims());
         // type-2 non-uniform FFT
         gpu::nufft::nufft3d2(d_cz, d_fz, grid);
         // type-1 non-uniform FFT
         gpu::nufft::nufft3d1(d_cz, d_fz, grid);
-        return gpu::array::to_real(d_fz);
+        return gpu::array::to_real(d_fz) / scale;
     }
     // explicit instantiations
     template DeviceArray<float> sysmat(const DeviceArray<float> &x,

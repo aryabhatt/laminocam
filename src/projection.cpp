@@ -18,8 +18,6 @@
  *---------------------------------------------------------------------------------
  */
 
-#include <execution>
-
 #include "array.h"
 #include "array_ops.h"
 #include "dtypes.h"
@@ -51,7 +49,9 @@ namespace tomocam {
         C = fft::ifft2(C);
         C = fft::ifftshift2(C);
 
-        return array::to_real<T>(C);
+        // scale by image size
+        T scale = static_cast<T>(pg.dims().n2 * pg.dims().n3);
+        return array::to_real<T>(C) / scale;
     }
     // Explicit instantiation forward
     template Array<float> forward(const Array<float> &, const PolarGrid<float> &,
@@ -72,17 +72,12 @@ namespace tomocam {
         C = fft::fft2(C);
         C = fft::ifftshift2(C);
 
-        // apply density compensation
-        std::transform(std::execution::par_unseq, C.begin(), C.end(), pg.w.begin(),
-                       C.begin(), [](std::complex<T> c, T w) { return c * w; });
-
         // nufft
         Array<std::complex<T>> F(recon_dims);
         nufft::nufft3d1<T>(C, F, pg);
 
-        // crop image
-        // scale
-        T scale = static_cast<T>(proj.ncols() * proj.nrows());
+        // scale by image size
+        T scale = static_cast<T>(pg.dims().n2 * pg.dims().n3);
         return array::to_real<T>(F) / scale;
     }
 

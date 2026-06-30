@@ -18,7 +18,6 @@
  *---------------------------------------------------------------------------------
  */
 
-
 #include <cuda/std/complex>
 
 #include "dtypes.h"
@@ -39,7 +38,11 @@ namespace tomocam::gpu {
     using complex = cuda::std::complex<T>;
 
     template <typename T>
-    DeviceArray<T> forward(const DeviceArray<T> &volume, const gpu::PolarGrid<T> &pg) {
+    DeviceArray<T> forward(const DeviceArray<T> &volume,
+                           const gpu::PolarGrid<T> &pg) {
+
+        auto dims = pg.dims();
+        T scale = static_cast<T>(dims.n2 * dims.n3);
 
         // cast to complex
         auto Ft = gpu::array::to_complex(volume);
@@ -53,7 +56,7 @@ namespace tomocam::gpu {
         C = gpu::fft::ifft2d(C);
         C = gpu::ifftshift2(C);
 
-        return gpu::array::to_real(C);
+        return gpu::array::to_real(C) / scale;
     }
 
     // Explicit instantiations for forward
@@ -69,6 +72,9 @@ namespace tomocam::gpu {
     template <typename T>
     DeviceArray<T> backward(const DeviceArray<T> &proj, const gpu::PolarGrid<T> &pg,
                             const dims_t &recon_dims) {
+
+        // scale
+        T scale = static_cast<T>(proj.nrows() * proj.ncols());
         // cast to complex
         auto C = array::to_complex(proj);
 
@@ -81,9 +87,7 @@ namespace tomocam::gpu {
         nufft::nufft3d1(C, F, pg);
 
         // scale and return real part
-        auto result = array::to_real(F);
-        T scale = static_cast<T>(proj.nrows() * proj.ncols());
-        return result / scale;
+        return array::to_real(F) / scale;
     }
 
     // Explicit instantiations for backward
