@@ -71,6 +71,35 @@ namespace tomocam {
     }
 
     template <typename T>
+    Array<T> pad3d(const Array<T> &arr, dims_t dims, PadType pad_type) {
+
+        Array<T> arr2 = Array<T>::zeros(dims);
+
+        dims_t d;
+        if (pad_type == PadType::RIGHT)
+            d = dims_t(0, 0, 0);
+        else if (pad_type == PadType::LEFT)
+            d = dims - arr.dims();
+        else
+            d = (dims - arr.dims()) / 2;
+
+        const T *src = arr.begin();
+        T *dst = arr2.begin();
+        const size_t in_rows = arr.nrows(), in_cols = arr.ncols();
+        const size_t out_rows = arr2.nrows(), out_cols = arr2.ncols();
+
+        #pragma omp parallel for collapse(2)
+        for (size_t i = 0; i < arr.nslices(); i++) {
+            for (size_t j = 0; j < arr.nrows(); j++) {
+                const T *row_src = src + (i * in_rows + j) * in_cols;
+                T *row_dst = dst + ((i + d.n1) * out_rows + (j + d.n2)) * out_cols + d.n3;
+                std::copy(row_src, row_src + in_cols, row_dst);
+            }
+        }
+        return arr2;
+    }
+
+    template <typename T>
     Array<T> crop3d(const Array<T> &arr, dims_t new_dims, PadType pad_type) {
 
         auto crop_size = arr.dims() - new_dims;
@@ -84,13 +113,17 @@ namespace tomocam {
         else if (pad_type == PadType::RIGHT)
             d = crop_size;
 
+        const T *src = arr.begin();
+        T *dst = arr2.begin();
+        const size_t in_rows = arr.nrows(), in_cols = arr.ncols();
+        const size_t out_rows = arr2.nrows(), out_cols = arr2.ncols();
+
+        #pragma omp parallel for collapse(2)
         for (size_t i = 0; i < new_dims.n1; i++) {
-            Slice<T> in = arr.slice(i + d.n1);
-            Slice<T> out = arr2.slice(i);
             for (size_t j = 0; j < new_dims.n2; j++) {
-                std::copy(in.ptr + (j + d.n2) * arr.ncols() + d.n3,
-                          in.ptr + (j + d.n2) * arr.ncols() + d.n3 + new_dims.n3,
-                          out.ptr + j * arr2.ncols());
+                const T *row_src = src + ((i + d.n1) * in_rows + (j + d.n2)) * in_cols + d.n3;
+                T *row_dst = dst + (i * out_rows + j) * out_cols;
+                std::copy(row_src, row_src + new_dims.n3, row_dst);
             }
         }
         return arr2;
