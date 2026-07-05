@@ -47,7 +47,8 @@ namespace tomocam {
         PolarGrid() : npts(0) {}
 
         // constructor
-        PolarGrid(const std::vector<T> &theta, T gamma, size_t nrows, size_t ncols) {
+        PolarGrid(const std::vector<T> &theta, const std::vector<T> &gamma,
+                  size_t nrows, size_t ncols) {
 
             dims_t dims = dims_t{theta.size(), nrows, ncols};
             x = Array<T>(dims);
@@ -61,17 +62,22 @@ namespace tomocam {
 
 #pragma omp parallel for collapse(3)
             for (size_t i = 0; i < dims.n1; ++i) {
+
+                // precompute coses and sines
+                T cos_theta = std::cos(theta[i]);
+                T sin_theta = std::sin(theta[i]);
+                T cos_gamma = std::cos(gamma[i]);
+                T sin_gamma = std::sin(gamma[i]);
+
                 for (size_t j = 0; j < dims.n2; ++j) {
                     for (size_t k = 0; k < dims.n3; ++k) {
 
                         T qX = (k + 0.5) * dX - M_PI;
                         T qY = (j + 0.5) * dY - M_PI;
 
-                        x[{i, j, k}] = qX * std::cos(gamma) -
-                                       qY * std::sin(gamma) * std::cos(theta[i]);
-                        y[{i, j, k}] = qX * std::sin(gamma) +
-                                       qY * std::cos(gamma) * std::cos(theta[i]);
-                        z[{i, j, k}] = qY * std::sin(theta[i]);
+                        x[{i, j, k}] = qX * cos_gamma - qY * sin_gamma * cos_theta;
+                        y[{i, j, k}] = qX * sin_gamma + qY * cos_gamma * cos_theta;
+                        z[{i, j, k}] = qY * sin_theta;
                     }
                 }
             }
