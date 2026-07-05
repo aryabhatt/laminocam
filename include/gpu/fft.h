@@ -25,8 +25,8 @@
 #include <array>
 #include <cuda/std/complex>
 
-#include "gpu/cufft_plan_cache.h"
 #include "gpu/device_array.h"
+#include "gpu/cufft_plan_cache.h"
 
 namespace tomocam::gpu::fft {
 
@@ -92,6 +92,38 @@ namespace tomocam::gpu::fft {
         int device_id = -1;
         SAFE_CALL(cudaGetDevice(&device_id));
         auto &plan = cache::plans<T>.get_plan(dim, n_modes, CUFFT_R2C, device_id);
+        plan.execute(data.data(), output.data());
+        return output;
+    }
+
+    template <typename T>
+    DeviceArray<complex<T>> rfft3d(DeviceArray<T> &data) {
+        int n1 = static_cast<int>(data.nslices());
+        int n2 = static_cast<int>(data.nrows());
+        int n3 = static_cast<int>(data.ncols());
+
+        DeviceArray<complex<T>> output(dims_t{(size_t)n1, (size_t)n2, (size_t)(n3 / 2 + 1)});
+
+        std::array<int, 3> n_modes = {n1, n2, n3};
+        int device_id = -1;
+        SAFE_CALL(cudaGetDevice(&device_id));
+        auto &plan = cache::plans<T>.get_plan(3, n_modes, CUFFT_R2C, device_id);
+        plan.execute(data.data(), output.data());
+        return output;
+    }
+
+    template <typename T>
+    DeviceArray<T> irfft3d(DeviceArray<complex<T>> &data, dims_t output_dims) {
+        int n1 = static_cast<int>(output_dims.n1);
+        int n2 = static_cast<int>(output_dims.n2);
+        int n3 = static_cast<int>(output_dims.n3);
+
+        DeviceArray<T> output(output_dims);
+
+        std::array<int, 3> n_modes = {n1, n2, n3};
+        int device_id = -1;
+        SAFE_CALL(cudaGetDevice(&device_id));
+        auto &plan = cache::plans<T>.get_plan(3, n_modes, CUFFT_C2R, device_id);
         plan.execute(data.data(), output.data());
         return output;
     }
