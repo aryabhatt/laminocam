@@ -62,6 +62,13 @@ namespace tomocam {
         [[nodiscard]] size_t y() const { return n2; }
         [[nodiscard]] size_t z() const { return n3; }
 
+        // comparison operators
+        bool operator==(const dims_t &v) const {
+            return (n1 == v.n1 && n2 == v.n2 && n3 == v.n3);
+        }
+        bool operator!=(const dims_t &v) const { return !(*this == v); }
+
+        // arithmetic operators
         dims_t operator+(const dims_t &v) const {
             return {n1 + v.n1, n2 + v.n2, n3 + v.n3};
         }
@@ -72,6 +79,11 @@ namespace tomocam {
         dims_t operator/(int v) const {
             if (v == 0) { throw std::runtime_error("divide by zeros"); }
             return {n1 / v, n2 / v, n3 / v};
+        }
+
+        std::string to_string() const {
+            return "dims_t(" + std::to_string(n1) + ", " + std::to_string(n2) +
+                   ", " + std::to_string(n3) + ")";
         }
     };
 
