@@ -24,6 +24,8 @@
 #include <cufft.h>
 #include <cuda/std/complex>
 
+#include "gpu/utils.h"
+
 namespace tomocam::gpu::fft {
 
     template <typename T>
@@ -97,9 +99,17 @@ namespace tomocam::gpu::fft {
         cuFFTPlanWrapper(int ndim, int *n, cufftType type, int gpu_id)
             : device_id(gpu_id), fft_type(type) {
             SAFE_CALL(cudaSetDevice(device_id));
-            int batch = n[0];
-            int dims[] = {n[1], n[2]};
-            int ierr = Traits::make_plan(ndim, dims, batch, &plan, fft_type);
+            int ierr;
+            if (ndim == 3) {
+                // single 3D transform over n[0] x n[1] x n[2]
+                int dims[] = {n[0], n[1], n[2]};
+                ierr = Traits::make_plan(3, dims, 1, &plan, fft_type);
+            } else {
+                // batched 2D: batch = n[0], dims = n[1] x n[2]
+                int batch = n[0];
+                int dims[] = {n[1], n[2]};
+                ierr = Traits::make_plan(2, dims, batch, &plan, fft_type);
+            }
             if (ierr != 0) { throw std::runtime_error("Error in cufftPlanMany"); }
         }
 
