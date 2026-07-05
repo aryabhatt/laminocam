@@ -70,13 +70,13 @@ int main(int argc, char **argv) {
 
 #ifdef USE_GPU
     std::cout << "Running reconstruction on GPU...\n";
-    auto recon = tomocam::gpu::MBIR<float>(datasets, recon_dims, params);
+    auto recon = tomocam::gpu::MBIR<float>(datasets, params);
     tomocam::gpu::nufft::plans::cache<float>.clear();
     tomocam::gpu::fft::cache::plans<float>.clear();
     cudaDeviceReset();
 #else
     std::cout << "Running reconstruction on CPU...\n";
-    auto recon = tomocam::MBIR<float>(datasets, recon_dims, params);
+    auto recon = tomocam::MBIR<float>(datasets, params);
 #endif
     t0.stop();
     std::cout << std::format("Reconstruction completed in {:.2f} seconds.\n",
