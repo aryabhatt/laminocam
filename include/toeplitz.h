@@ -11,21 +11,26 @@
 #include "padding.h"
 #include "polar_grid.h"
 
-namespace tomocam {
+namespace tomocam::cpu {
 
     template <typename T>
     class PointSpreadFunction {
       private:
         using complex_t = std::complex<T>;
-        dims_t dims_; // full real-space dims of the oversampled kernel
-        Array<complex_t> kernel_hat_; // R2C output: shape {n1, n2, n3/2+1}
+        dims_t dims_;
+        Array<complex_t> kernel_hat_;
 
       public:
+        [[nodiscard]] dims_t dims() const { return dims_; }
+        [[nodiscard]] const Array<complex_t> &kernel_hat() const {
+            return kernel_hat_;
+        }
+
         PointSpreadFunction() = default;
 
-        PointSpreadFunction(const PolarGrid<T> &grid, dims_t proj_dims,
-                            dims_t recon_dims) {
+        PointSpreadFunction(const PolarGrid<T> &grid, dims_t recon_dims) {
 
+            dims_t proj_dims = grid.dims();
             dims_ = {2 * recon_dims.n1 - 1, 2 * recon_dims.n2 - 1,
                      2 * recon_dims.n3 - 1};
             dims_t fft_dims = {dims_.n1, dims_.n2, dims_.n3 / 2 + 1};
@@ -90,6 +95,6 @@ namespace tomocam {
             return crop3d(result, orig_dims, PadType::RIGHT) / norm;
         }
     };
-} // namespace tomocam
+} // namespace tomocam::cpu
 
 #endif // TOEPLITZ_H

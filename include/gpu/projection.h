@@ -24,6 +24,7 @@
 #include "dtypes.h"
 #include "gpu/device_array.h"
 #include "gpu/polar_grid.h"
+#include "gpu/toeplitz.h"
 
 namespace tomocam::gpu {
 
@@ -69,6 +70,9 @@ namespace tomocam::gpu {
      */
     template <typename T>
     DeviceArray<T> sysmat(const DeviceArray<T> &x, const PolarGrid<T> &pg);
+
+    template <typename T>
+    DeviceArray<T> sysmat(const DeviceArray<T> &x, const PointSpreadFunction<T> &psf);
 } // namespace tomocam::gpu
 
 #endif // TOMOCAM_GPU_PROJECTION_H

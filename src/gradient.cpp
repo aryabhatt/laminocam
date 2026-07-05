@@ -48,11 +48,11 @@ namespace tomocam {
 
     // use Toeplitz method to compute the system matrix
     template <typename T>
-    Array<T> sysmat(const Array<T> &x, const PointSpreadFunction<T> &psf) {
+    Array<T> sysmat(const Array<T> &x, const cpu::PointSpreadFunction<T> &psf) {
         return psf.convolve(x);
     }
     template Array<float> sysmat(const Array<float> &,
-                                 const PointSpreadFunction<float> &);
+                                 const cpu::PointSpreadFunction<float> &);
     template Array<double> sysmat(const Array<double> &,
-                                  const PointSpreadFunction<double> &);
+                                  const cpu::PointSpreadFunction<double> &);
 } // namespace tomocam

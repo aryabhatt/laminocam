@@ -33,6 +33,7 @@
 #include "gpu/padding.h"
 #include "gpu/polar_grid.h"
 #include "padding.h"
+#include "toeplitz.h"
 
 namespace tomocam::gpu {
 
@@ -46,12 +47,30 @@ namespace tomocam::gpu {
       public:
         PointSpreadFunction() = default;
 
-        PointSpreadFunction(const gpu::PolarGrid<T> &grid, dims_t proj_dims,
-                            dims_t recon_dims) {
+        // copy CPU computed PSF to GPU for repeated use in convolve()
+        PointSpreadFunction(dims_t dims, const DeviceArray<complex_t> &kernel_hat)
+            : dims_(dims), kernel_hat_(kernel_hat) {}
+
+        // upload a CPU-computed kernel hat (from FINUFFT) to GPU to save device memory;
+        // std::complex<T> and cuda::std::complex<T> are ABI-compatible
+        PointSpreadFunction(dims_t dims, const Array<std::complex<T>> &cpu_kernel)
+            : dims_(dims) {
+            static_assert(sizeof(std::complex<T>) == sizeof(complex_t),
+                          "complex type ABI mismatch");
+            kernel_hat_ = DeviceArray<complex_t>(cpu_kernel.dims());
+            SAFE_CALL(cudaMemcpy(kernel_hat_.data(), cpu_kernel.data(),
+                                 cpu_kernel.size() * sizeof(complex_t),
+                                 cudaMemcpyHostToDevice));
+        }
+
+        // construct PSF from a polar grid and store its R2C FFT for repeated use in
+        // convolve()
+        PointSpreadFunction(const gpu::PolarGrid<T> &grid, dims_t recon_dims) {
+
+            dims_t proj_dims = grid.dims();
             dims_ = {2 * recon_dims.n1 - 1, 2 * recon_dims.n2 - 1,
                      2 * recon_dims.n3 - 1};
 
-            // type-1 NUFFT with unit weights: NU ones → oversampled uniform grid
             // One-shot plan (not cached): used exactly once for PSF construction.
             auto ones = DeviceArray<complex_t>(proj_dims);
             thrust::fill(ones.begin(), ones.end(), complex_t{T(1), T(0)});
@@ -60,10 +79,9 @@ namespace tomocam::gpu {
             {
                 int gpu_id;
                 SAFE_CALL(cudaGetDevice(&gpu_id));
-                std::array<int64_t, 3> n_modes = {
-                    static_cast<int64_t>(dims_.n3),
-                    static_cast<int64_t>(dims_.n2),
-                    static_cast<int64_t>(dims_.n1)};
+                std::array<int64_t, 3> n_modes = {static_cast<int64_t>(dims_.n3),
+                                                  static_cast<int64_t>(dims_.n2),
+                                                  static_cast<int64_t>(dims_.n1)};
                 nufft::cuFinfftPlanWrapper<T> plan(1, 3, n_modes, 1, gpu_id);
                 plan.set_points(grid);
                 plan.execute(ones.data(), nufft_out.data());

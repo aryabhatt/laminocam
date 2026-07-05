@@ -24,6 +24,7 @@
 #include "gpu/device_array_ops.h"
 #include "gpu/nufft.h"
 #include "gpu/polar_grid.h"
+#include "gpu/toeplitz.h"
 
 namespace tomocam::gpu {
 
@@ -41,9 +42,18 @@ namespace tomocam::gpu {
         gpu::nufft::nufft3d1(d_cz, d_fz, grid);
         return gpu::array::to_real(d_fz) / scale;
     }
-    // explicit instantiations
     template DeviceArray<float> sysmat(const DeviceArray<float> &x,
                                        const gpu::PolarGrid<float> &grid);
     template DeviceArray<double> sysmat(const DeviceArray<double> &x,
                                         const gpu::PolarGrid<double> &grid);
+
+    template <typename T>
+    DeviceArray<T> sysmat(const DeviceArray<T> &x,
+                          const gpu::PointSpreadFunction<T> &psf) {
+        return psf.convolve(x);
+    }
+    template DeviceArray<float> sysmat(const DeviceArray<float> &,
+                                       const gpu::PointSpreadFunction<float> &);
+    template DeviceArray<double> sysmat(const DeviceArray<double> &,
+                                        const gpu::PointSpreadFunction<double> &);
 } // namespace tomocam::gpu
