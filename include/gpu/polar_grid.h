@@ -57,7 +57,8 @@ namespace tomocam::gpu {
         /// @param gamma  Out-of-plane tilt angle (radians)
         /// @param nrows  Number of radial samples
         /// @param ncols  Number of axial samples
-        PolarGrid(const std::vector<T> &theta, T gamma, size_t nrows, size_t ncols);
+        PolarGrid(const std::vector<T> &theta, const std::vector<T> &gamma,
+                  size_t nrows, size_t ncols);
     };
 } // namespace tomocam::gpu
 
