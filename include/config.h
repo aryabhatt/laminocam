@@ -21,6 +21,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <format>
@@ -33,6 +34,7 @@
 #include <vector>
 
 #include "array.h"
+#include "hdfread.h"
 #include "mask.h"
 #include "recon_params.h"
 #include "tiff.h"
@@ -97,12 +99,11 @@ namespace tomocam {
                 throw std::runtime_error("Invalid [[input]] entry");
             }
 
-            //  check for required fields: filename, angles, gamma
+            //  check for required fields: filename, gamma
             if (!input_table->contains("filename") ||
-                !input_table->contains("angles") ||
                 !input_table->contains("gamma")) {
-                throw std::runtime_error("[[input]] entry must have 'filename', "
-                                         "'angles', and 'gamma' fields");
+                throw std::runtime_error(
+                    "[[input]] entry must have 'filename' and 'gamma' fields");
             }
             auto filename = (*input_table)["filename"].value<std::string>();
             if (!filename.has_value()) {
@@ -113,24 +114,49 @@ namespace tomocam {
                 throw std::runtime_error(
                     std::format("Projection file does not exist: {}", *filename));
             }
-            auto angles_file = (*input_table)["angles"].value<std::string>();
-            if (!angles_file.has_value()) {
-                throw std::runtime_error("[[input]] 'angles' must be a string");
-            }
-            // check if file exists
-            if (!std::filesystem::exists(*angles_file)) {
-                throw std::runtime_error(
-                    std::format("Angles file does not exist: {}", *angles_file));
-            }
             auto gamma = (*input_table)["gamma"].value<T>();
             if (!gamma.has_value()) {
                 throw std::runtime_error("[[input]] 'gamma' field must be a number");
             }
 
-            auto projs = tomocam::tiff::read(*filename);
+            // deg→rad conversion applied to any angles vector
+            auto to_radians = [](std::vector<T> &a) {
+                auto mx = *std::max_element(a.begin(), a.end());
+                if (std::abs(mx) > 2 * M_PI)
+                    for (auto &v : a) v = v * M_PI / T(180);
+            };
+
+            // dispatch on filename extension
+            auto ext = std::filesystem::path(*filename).extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+            Array<float> projs;
+            std::vector<T> angles;
+
+            if (ext == ".tiff" || ext == ".tif") {
+                auto angles_path = (*input_table)["angles"].value<std::string>();
+                if (!angles_path.has_value())
+                    throw std::runtime_error(
+                        "[[input]] 'angles' is required for TIFF files");
+                if (!std::filesystem::exists(*angles_path))
+                    throw std::runtime_error(
+                        std::format("Angles file does not exist: {}", *angles_path));
+                projs  = tomocam::tiff::read(*filename);
+                angles = read_angles_file<T>(*angles_path);
+            } else if (ext == ".h5" || ext == ".hdf5") {
+                auto angles_ds =
+                    (*input_table)["angles"].value_or<std::string>("/coords/alpha");
+                projs      = tomocam::h5::read_images(*filename);
+                auto raw   = tomocam::h5::read_angles(*filename, angles_ds);
+                angles.assign(raw.begin(), raw.end());
+                to_radians(angles);
+            } else {
+                throw std::runtime_error(
+                    std::format("Unsupported file extension '{}': {}", ext, *filename));
+            }
+
             projs = tomocam::mask_infs_nans(projs);
-            auto angles = read_angles_file<T>(*angles_file);
-            auto gamma_rad = *gamma * M_PI / (T)180.0; // convert to radians
+            auto gamma_rad = *gamma * M_PI / T(180);
             datasets.push_back(
                 std::make_tuple(std::move(projs), std::move(angles), gamma_rad));
         }
@@ -302,6 +328,11 @@ namespace tomocam {
         outfile << "# filename = \"/path/to/projections2.tiff\"\n";
         outfile << "# angles = \"/path/to/angles.txt\"\n";
         outfile << "# gamma = 45\n";
+        outfile << "\n";
+        outfile << "# HDF5 alternative (angles read from /coords/alpha inside the file):\n";
+        outfile << "# [[input]]\n";
+        outfile << "# filename = \"/path/to/projections.h5\"\n";
+        outfile << "# gamma = 0\n";
         outfile << "\n";
         outfile << "[output]\n";
         outfile << "filename = \"output.tiff\"\n";
