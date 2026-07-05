@@ -25,8 +25,6 @@
 
 #include "array.h"
 #include "array_ops.h"
-#include "config.h"
-#include "density_comp.h"
 #include "optimize.h"
 #include "padding.h"
 #include "polar_grid.h"
@@ -35,15 +33,18 @@
 namespace tomocam {
     template <typename T>
     Array<T> MBIR(const std::vector<Dataset_t<T>> &datasets,
-                  const dims_t &recon_dims, const ReconParams &params) {
+                  const ReconParams &params) {
 
         // zero-pad reconstruction dimensions by sqrt(2) to avoid aliasing
-        float padding = static_cast<T>(params.PAD_FACTOR);
-        auto pad = [padding](size_t n) {
-            size_t npad = 2 * (static_cast<size_t>(n * (padding - 1)) / 2);
-            return n + npad;
+        T padfac = static_cast<T>(params.PAD_FACTOR);
+        auto pad = [padfac](size_t n) {
+            auto n_pad = static_cast<size_t>(n * padfac);
+            if (n_pad % 2 == 0) { n_pad -= 1; } // make odd
+            return n_pad;
         };
 
+        // pad reconstruction dimensions
+        dims_t recon_dims = params.recon_dims;
         dims_t out_dims = recon_dims;
         out_dims.n1 = pad(recon_dims.n1);
         out_dims.n2 = pad(recon_dims.n2);
@@ -53,59 +54,80 @@ namespace tomocam {
             "Reconstruction dimensions (with padding): {} x {} x {}\n", out_dims.n1,
             out_dims.n2, out_dims.n3);
 
-        // accumulate backprojections across all datasets
+        /*
+         * Stack all the projections from all the datasets into a single array,
+         * and stack corresponding angles and gamma values into vectors.
+         * Build an implicit Topelitz matrix to represent the system operator for the
+         * reconstruction.
+         */
+        size_t n_projs = 0;
         size_t n_datasets = datasets.size();
-        auto yT = Array<T>::zeros(out_dims);
-        std::vector<PolarGrid<T>> polar_grids(n_datasets);
-
+        dims_t proj_dims = std::get<0>(datasets[0]).dims();
         for (size_t j = 0; j < n_datasets; ++j) {
-            auto &[proj, angles, gamma] = datasets[j];
+            n_projs += std::get<1>(datasets[j]).size();
+        }
+        proj_dims.n1 = n_projs;
+        std::vector<T> theta;
+        std::vector<T> gamma;
+        cpu::PointSpreadFunction<T> psf;
+        Array<T> yT;
+        {
 
-            // normalize projections
-            T proj_max = array::max(proj);
-            auto y = proj / proj_max;
+            size_t offset = 0;
+            Array<T> stacked_projs = Array<T>(proj_dims);
+            for (size_t j = 0; j < n_datasets; ++j) {
+                auto &[proj, angles, gamma_ref] = datasets[j];
 
-            // zero-pad projections by sqrt(2) to avoid aliasing
-            y = pad2d(y, padding, PadType::SYMMETRIC);
+                // stack projections into a single array
+                std::copy(proj.data(), proj.data() + proj.size(),
+                          stacked_projs.data() + offset);
+                offset += proj.size();
 
-            // setup polar grid (gamma already encoded in grid)
-            size_t nrows = y.nrows();
-            size_t ncols = y.ncols();
-            polar_grids[j] = PolarGrid<T>(angles, gamma, nrows, ncols);
+                // combine angles and gamma values into single vectors
+                for (auto &angle : angles) { theta.push_back(angle); }
+                for (size_t i = 0; i < angles.size(); ++i) {
+                    gamma.push_back(gamma_ref);
+                }
+            }
 
-            // accumulate backprojection
-            yT += backproj(y, polar_grids[j], out_dims);
+            // normalize values to [0, 1] to avoid numerical issues
+            T max_val = array::max(stacked_projs);
+            if (max_val > 0) { stacked_projs /= max_val; }
+
+            // pad projections to avoid aliasing
+            stacked_projs = pad2d(stacked_projs, padfac, PadType::SYMMETRIC);
+            size_t nrows = stacked_projs.dims().n2;
+            size_t ncols = stacked_projs.dims().n3;
+
+            // build polar grid for system matrix
+            auto pg = PolarGrid<T>(theta, gamma, nrows, ncols);
+
+            // compute backprojection from stacked projections
+            yT = backproj(stacked_projs, pg, out_dims);
+
+            // build a point-spread function (PSF) for the system matrix
+            psf = cpu::PointSpreadFunction<T>(pg, out_dims);
         }
 
         // build system operator that sums over all datasets
-        opt::Function<T> ATA = [&polar_grids](const Array<T> &x) {
-            auto Ax = sysmat<T>(x, polar_grids[0]);
-            for (size_t j = 1; j < polar_grids.size(); ++j) {
-                Ax += sysmat<T>(x, polar_grids[j]);
-            }
-            return Ax;
-        };
+        opt::Function<T> A = [&psf](const Array<T> &x) { return sysmat(x, psf); };
 
-        // initial guess: FBP from first dataset
-        auto &[proj0, angles0, gamma0] = datasets[0];
-        auto y0 = proj0 / array::max(proj0);
-        y0 = pad2d(y0, padding, PadType::SYMMETRIC);
-        auto x0 = fbp(y0, polar_grids[0], out_dims);
-
-        auto recon = Array<T>(out_dims);
+        // initialize reconstruction with zeros
+        auto x0 = Array<T>::zeros(out_dims);
+        Array<T> recon;
 
         // run optimization
         switch (params.regularizer) {
             case Regularizer::UNCONSTRAINED: {
                 std::cout << "Starting unconstrained iterative reconstruction with "
                              "CG ...\n";
-                recon = opt::cgsolver<T>(ATA, yT, x0, params.maxIters, params.tol,
+                recon = opt::cgsolver<T>(A, yT, x0, params.maxIters, params.tol,
                                          params.xtol);
                 break;
             }
             case Regularizer::SPLIT_BREGMAN: {
                 std::cout << "Starting MBIR with Split-Bregman method ...\n";
-                recon = opt::split_bregman<T>(ATA, yT, x0, params.lambda, params.mu,
+                recon = opt::split_bregman<T>(A, yT, x0, params.lambda, params.mu,
                                               params.maxIters, params.innerIters,
                                               params.tol, params.xtol);
                 break;
@@ -119,10 +141,9 @@ namespace tomocam {
 
     // explicit template instantiation
     template Array<float> MBIR<float>(const std::vector<Dataset_t<float>> &datasets,
-                                      const dims_t &recon_dims,
                                       const ReconParams &cfg);
     template Array<double>
     MBIR<double>(const std::vector<Dataset_t<double>> &datasets,
-                 const dims_t &recon_dims, const ReconParams &cfg);
+                 const ReconParams &cfg);
 
 } // namespace tomocam
