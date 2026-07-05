@@ -58,6 +58,8 @@ endif(OpenMP_FOUND)
 find_package(TBB REQUIRED)
 find_package(FFTW REQUIRED)
 find_package(TIFF REQUIRED)
+find_package(HDF5 REQUIRED)
+include_directories(${HDF5_C_INCLUDE_DIR})
 
 # toml++
 include(FetchContent)
@@ -76,7 +78,6 @@ target_link_libraries(tomocam_scalar PUBLIC FFTW::double)
 target_link_libraries(tomocam_scalar PUBLIC FFTW::float)
 target_link_libraries(tomocam_scalar PUBLIC finufft::finufft)
 target_link_libraries(tomocam_scalar PUBLIC TBB::tbb)
-target_link_libraries(tomocam_scalar PUBLIC TIFF::TIFF)
 if (${USE_GPU})
   target_link_libraries(tomocam_scalar PUBLIC finufft::cufinufft)
   target_link_libraries(tomocam_scalar PUBLIC CUDA::cufft)
@@ -88,13 +89,11 @@ set_property(TARGET tomocam_scalar PROPERTY CXX_STANDARD 20)
 # recon executable
 add_executable(recon_scalar src/recon.cpp)
 target_link_libraries(recon_scalar PRIVATE tomocam_scalar tomlplusplus::tomlplusplus)
+target_link_libraries(recon_scalar PRIVATE TIFF::TIFF ${HDF5_LIBRARIES})
 
 install(TARGETS recon_scalar RUNTIME DESTINATION bin)
 install(TARGETS tomocam_scalar LIBRARY DESTINATION lib)
-set_target_properties(recon_scalar tomocam_scalar PROPERTIES
-    INSTALL_RPATH "\$ORIGIN/../lib"
-    BUILD_WITH_INSTALL_RPATH TRUE
-)
+
 option(ENABLE_TESTS "Enable tests" OFF)
 
 # GPU memory verification checkpoints (guarded by #ifdef TOMOCAM_MEMORY_VERIFY)
