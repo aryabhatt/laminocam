@@ -38,18 +38,10 @@ namespace tomocam::opt {
         // initialize
         auto x = x0.clone();
         auto r = yT - A(x);
+        auto y_norm = array::norm2(yT);
 
-        // diagnoal preconditioner
-        auto ones = Array<T>::ones(x.dims());
-        auto pre = A(ones);
-        for (size_t i = 0; i < pre.size(); i++) {
-            if (std::abs(pre[i]) < 1.2E-07) {
-                std::cerr << "preconditioner is close to zero\n";
-                pre[i] = 1.0E-06;
-            }
-        }
-        auto precond_apply = [&pre](const Array<T> &r) { return r / pre; };
-        // auto precond_apply = [](const Array<T> &r) { return r.clone(); };
+        // no-preconditioner so far
+        auto precond_apply = [](const Array<T> &r) { return r.clone(); };
 
         auto z = precond_apply(r);
         auto p = z.clone();
@@ -59,11 +51,8 @@ namespace tomocam::opt {
 
             auto Ap = A(p);
             auto pAp = array::dot(p, Ap);
-            auto pAp_thresh = T(100) * std::numeric_limits<T>::epsilon() *
-                              array::dot(p, p) * array::dot(Ap, Ap);
-            if (std::abs(pAp) < std::sqrt(pAp_thresh)) {
-                std::cerr << std::format("pAp is close to zero: {}, stopping CG\n",
-                                         pAp);
+            if (std::abs(pAp) < 1.0e-10) {
+                std::cout << "pAp is too small, stopping CG iterations\n";
                 break;
             }
             auto alpha = rs_old / pAp;
@@ -77,7 +66,7 @@ namespace tomocam::opt {
             rs_old = rs_new;
 
             // calculate and print the residual and solution change
-            auto res = std::sqrt(array::dot(r, r));
+            auto res = array::norm2(r) / (y_norm + T(1e-8));
             auto dx = array::norm2(step) / (array::norm2(x) + T(1e-8));
             std::cout << std::format("\t CG Iter: {}, residual: {}, dx: {:.6e}\n",
                                      iter, res, dx);
