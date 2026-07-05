@@ -71,7 +71,7 @@
                 },
                 "ENABLE_TESTS": {
                     "type": "BOOL",
-                    "value": "OFF"
+                    "value": "ON"
                 }
             },
             "condition": {
