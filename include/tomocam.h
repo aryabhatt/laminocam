@@ -23,98 +23,14 @@
 
 #include <vector>
 
-#include "array.h"
-#include "config.h"
-#include "dtypes.h"
-#include "polar_grid.h"
-#include "tiff.h"
-#include "toeplitz.h"
+#include "projection.h"
+#include "recon_params.h"
 
 namespace tomocam {
-    /**
-     * @brief Performs a forward projection of 3D volume data onto a polar grid.
-     * @param volume The input 3D volume data as an Array.
-     * @param grid The polar grid defining the projection geometry.
-     * @param gamma orientation of the polar grid (default is 0).
-     * @return The projected data as an Array.
-     */
-    template <typename T>
-    Array<T> forward(const Array<T> &volume, const PolarGrid<T> &grid,
-                     T gamma = T(0));
 
-    /**
-     * @brief Performs a backward projection from polar grid data to reconstruct a 3D
-     * volume.
-     * @param projections The input polar grid data as an Array.
-     * @param grid The polar grid defining the projection geometry.
-     * @param dims The dimensions of the output volume.
-     * @param gamma orientation of the polar grid (ALS specific)
-     * @param boolean filter Whether to apply filtering
-     * @param filter_type The type of filter to apply
-     * @return The backprojected polar data as an Array
-     */
-    template <typename T>
-    Array<T> backward(const Array<T> &projections, const PolarGrid<T> &grid,
-                      const dims_t &dims, T gamma, bool filter,
-                      const std::string &filter_type);
-
-    /**
-     * @brief Adjoint of the Radon operator for polar grid data.
-     * @param projections The input polar grid data as an Array.
-     * @param grid The polar grid defining the projection geometry.
-     * @param dims The dimensions of the output volume.
-     * @param gamma orientation of the polar grid (default is 0).
-     * @return The adjoint projected data as an Array.
-     */
-    template <typename T>
-    Array<T> backproj(const Array<T> &projections, const PolarGrid<T> &grid,
-                      const dims_t &dims, T gamma = T(0)) {
-        std::string filter_type = "";
-        return backward(projections, grid, dims, gamma, false, filter_type);
-    }
-    /**
-     * @brief Filtered-backprojection of polar grid data to reconstruct a 3D volume.
-     * @param projections The input polar grid data as an Array.
-     * @param grid The polar grid defining the projection geometry.
-     * @param dims The dimensions of the output volume.
-     * @param gamma orientation of the polar grid (default is 0).
-     * @pram filter_type The type of filter to apply (default is "ram-lak").
-     * @return The reconstructed volume data as an Array.
-     */
-    template <typename T>
-    Array<T> fbp(const Array<T> &projections, const PolarGrid<T> &grid,
-                 const dims_t &dims, const std::string &filter_type = "ramp",
-                 T gamma = T(0)) {
-        return backward(projections, grid, dims, gamma, true, filter_type);
-    }
-    /**
-     * @brief Function equivalent of system matrix y = A*x
-     * @param x Input volume data as an Array.
-     * @param grid The polar grid defining the projection geometry.
-     * @return The equivalent of A^T(A*x) result as an Array.
-     */
-    template <typename T>
-    Array<T> sysmat(const Array<T> &x, const PolarGrid<T> &grid);
-
-    /**
-     * @brief Toeplitz (PSF convolution) equivalent of system matrix y = A^T A x
-     * @param x Input volume data as an Array.
-     * @param psf Pre-computed PointSpreadFunction for the projection geometry.
-     * @return The equivalent of A^T(A*x) result as an Array.
-     */
-    template <typename T>
-    Array<T> sysmat(const Array<T> &x, const PointSpreadFunction<T> &psf);
-
-    /**
-     * @brief Performs Model-Based Iterative Reconstruction (MBIR) of volume data.
-     * @param datasets Vector of input datasets, each containing projections, angles, and gamma.
-     * @param recon_dims Dimensions of the output reconstructed volume.
-     * @param params Configuration parameters for the optimizer.
-     * @return The reconstructed volume data as an Array.
-     */
     template <typename T>
     Array<T> MBIR(const std::vector<Dataset_t<T>> &datasets,
-                  const dims_t &recon_dims, const ReconParams &params);
+                  const ReconParams &params);
 
 } // namespace tomocam
 
