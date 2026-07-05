@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     git \
     ninja-build \
     libblas-dev \
+    libhdf5-dev \
     wget \
     curl \
     liblapack-dev \
