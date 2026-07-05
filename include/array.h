@@ -90,6 +90,8 @@ namespace tomocam {
             return std::move(rv);
         }
 
+        T *data() { return ptr_.get(); }
+        const T *data() const { return ptr_.get(); }
         T *begin() { return ptr_.get(); }
         const T *begin() const { return ptr_.get(); }
         T *end() { return ptr_.get() + size_; }
