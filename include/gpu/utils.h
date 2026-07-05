@@ -32,9 +32,9 @@
     { checkCuda((ans), __FILE__, __LINE__); }
 inline void checkCuda(cudaError_t result, const char *file, int line) {
     if (result != cudaSuccess) {
-        fprintf(stderr, "CUDA Runtime Error: %s at %s:%d\n",
-                cudaGetErrorString(result), file, line);
-        exit(EXIT_FAILURE);
+        throw std::runtime_error(
+            std::string("CUDA error at ") + file + ":" + std::to_string(line) +
+            " — " + cudaGetErrorString(result));
     }
 }
 
@@ -42,8 +42,9 @@ inline void checkCuda(cudaError_t result, const char *file, int line) {
     { checkCufft((ans), __FILE__, __LINE__); }
 inline void checkCufft(cufftResult result, const char *file, int line) {
     if (result != CUFFT_SUCCESS) {
-        fprintf(stderr, "cuFFT error %d at %s:%d\n", result, file, line);
-        exit(EXIT_FAILURE);
+        throw std::runtime_error(
+            std::string("cuFFT error ") + std::to_string(result) + " at " + file +
+            ":" + std::to_string(line));
     }
 }
 
