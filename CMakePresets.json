@@ -25,7 +25,7 @@
             }
         },
         {
-            "name": "arch",
+            "name": "linux",
             "displayName": "Yoneda",
             "description": "Debug build with debug symbols for Arch Linux",
             "generator": "Ninja",
@@ -53,7 +53,7 @@
             }
         },
         {
-            "name": "arch-release",
+            "name": "linux-release",
             "displayName": "Yoneda Release",
             "description": "Release build for Arch Linux",
             "generator": "Ninja",
@@ -111,7 +111,7 @@
             "name": "mem-verify",
             "displayName": "Memory Verification",
             "description": "Debug build with TOMOCAM_MEMORY_VERIFY=ON: inserts cudaMemGetInfo checkpoints in split_bregman and cgsolver to compare actual vs. predicted GPU memory at runtime.",
-            "inherits": "arch",
+            "inherits": "linux",
             "binaryDir": "${sourceDir}/build/mem-verify",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
@@ -125,16 +125,16 @@
     ],
     "buildPresets": [
         { "name": "macos", "configurePreset": "macos", "cleanFirst": false },
-        { "name": "arch", "configurePreset": "arch" },
-        { "name": "arch-release", "configurePreset": "arch-release" },
+        { "name": "linux", "configurePreset": "linux" },
+        { "name": "linux-release", "configurePreset": "linux-release" },
         { "name": "nersc", "configurePreset": "nersc" },
         { "name": "mem-verify", "configurePreset": "mem-verify" }
     ],
     "testPresets": [
       {
-          "name": "arch",
+          "name": "linux",
           "displayName": "test-linux",
-          "configurePreset": "arch",
+          "configurePreset": "linux",
           "output": {
               "outputOnFailure" : true,
               "verbosity": "verbose"
@@ -166,20 +166,20 @@
             ]
         },
         {
-            "name": "arch",
-            "displayName": "Full workflow for arch",
+            "name": "linux",
+            "displayName": "Full workflow for Linux",
             "steps": [
-                { "name": "arch", "type": "configure" },
-                { "name": "arch", "type": "build" },
-                { "name": "arch", "type": "test"}
+                { "name": "linux", "type": "configure" },
+                { "name": "linux", "type": "build" },
+                { "name": "linux", "type": "test"}
             ]
         },
         {
-            "name": "arch-release",
-            "displayName": "Full workflow for arch release",
+            "name": "linux-release",
+            "displayName": "Full workflow for linux release",
             "steps": [
-                { "name": "arch-release", "type": "configure" },
-                { "name": "arch-release", "type": "build" }
+                { "name": "linux-release", "type": "configure" },
+                { "name": "linux-release", "type": "build" }
             ]
         },
         {
