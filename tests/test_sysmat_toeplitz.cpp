@@ -34,8 +34,8 @@
 #include "array_ops.h"
 #include "dtypes.h"
 #include "polar_grid.h"
-#include "tomocam.h"
 #include "toeplitz.h"
+#include "tomocam.h"
 
 using namespace tomocam;
 
@@ -46,23 +46,25 @@ static double cosine_sim(const Array<double> &a, const Array<double> &b) {
 }
 
 static bool test_sysmat_agreement(const dims_t &vol_dims,
-                                  const std::vector<double> &theta,
-                                  double gamma, double tol) {
-    std::cout << std::format("vol({},{},{}) nangles={:<3}  sysmat NUFFT vs Toeplitz\n",
-                             vol_dims.n1, vol_dims.n2, vol_dims.n3, theta.size());
+                                  const std::vector<double> &theta, double gamma,
+                                  double tol) {
+    std::cout << std::format(
+        "vol({},{},{}) nangles={:<3}  sysmat NUFFT vs Toeplitz\n", vol_dims.n1,
+        vol_dims.n2, vol_dims.n3, theta.size());
 
-    PolarGrid<double> pg(theta, gamma, vol_dims.n2, vol_dims.n3);
-    PointSpreadFunction<double> psf(pg, pg.dims(), vol_dims);
+    PolarGrid<double> pg(theta, std::vector<double>(theta.size(), gamma),
+                         vol_dims.n2, vol_dims.n3);
+    cpu::PointSpreadFunction<double> psf(pg, vol_dims);
 
     auto x = Array<double>::random(vol_dims);
 
-    auto nufft_result    = sysmat(x, pg);
+    auto nufft_result = sysmat(x, pg);
     auto toeplitz_result = sysmat(x, psf);
 
-    double n_nufft    = array::norm2(nufft_result);
+    double n_nufft = array::norm2(nufft_result);
     double n_toeplitz = array::norm2(toeplitz_result);
     double scale_ratio = (n_nufft > 0) ? n_toeplitz / n_nufft : 0.0;
-    double cos_sim     = cosine_sim(nufft_result, toeplitz_result);
+    double cos_sim = cosine_sim(nufft_result, toeplitz_result);
 
     // normalised relative difference: compare nufft with toeplitz / scale_ratio
     auto toeplitz_scaled = toeplitz_result * (1.0 / scale_ratio);
@@ -77,8 +79,8 @@ static bool test_sysmat_agreement(const dims_t &vol_dims,
                              "scale_ratio={:.4e}  cos_sim={:.6f}\n",
                              n_nufft, n_toeplitz, scale_ratio, cos_sim);
     std::cout << std::format("  normalised rel_diff={:.2e}  shape={} scale={}\n",
-                             rel_diff_norm,
-                             shape_ok ? "OK" : "FAIL", scale_ok ? "OK" : "FAIL");
+                             rel_diff_norm, shape_ok ? "OK" : "FAIL",
+                             scale_ok ? "OK" : "FAIL");
     return ok;
 }
 
@@ -86,7 +88,7 @@ int main() {
     std::cout << "\n====== sysmat: NUFFT vs Toeplitz agreement tests ======\n\n";
 
     const double gamma = 0.0;
-    const double tol   = 1e-4;
+    const double tol = 1e-4;
     int passed = 0, failed = 0;
     auto record = [&](bool ok) { ok ? ++passed : ++failed; };
 

@@ -69,7 +69,7 @@ bool test_nufft3d1_cpu_vs_gpu(size_t nangles, size_t nrows, size_t ncols,
     std::vector<double> theta(nangles);
     for (size_t i = 0; i < nangles; ++i)
         theta[i] = M_PI * static_cast<double>(i) / static_cast<double>(nangles);
-    const double gamma = 0.0;
+    std::vector<double> gamma(nangles, 0.0);
 
     // CPU and GPU polar grids from identical angles
     PolarGrid<double>     cpu_pg(theta, gamma, nrows, ncols);
@@ -126,7 +126,7 @@ bool test_nufft3d2_cpu_vs_gpu(size_t nangles, size_t nrows, size_t ncols,
     std::vector<double> theta(nangles);
     for (size_t i = 0; i < nangles; ++i)
         theta[i] = M_PI * static_cast<double>(i) / static_cast<double>(nangles);
-    const double gamma = 0.0;
+    std::vector<double> gamma(nangles, 0.0);
 
     PolarGrid<double>      cpu_pg(theta, gamma, nrows, ncols);
     gpu::PolarGrid<double>  gpu_pg(theta, gamma, nrows, ncols);

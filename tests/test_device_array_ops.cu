@@ -65,27 +65,25 @@ static Array<float> const_array(dims_t d, float v) {
 }
 
 // -------------------------------------------------------------------------
-// Tests — GPU-only operations (no CPU counterpart)
+// Tests — operator overloads on DeviceArray
 // -------------------------------------------------------------------------
 
 void test_scale_inplace() {
     dims_t d{1, 2, 4};
-    auto ha = const_array(d, 3.f);
-    DeviceArray<float> da(ha);
-    gpu_arr::scale_inplace(da, 2.f);
+    DeviceArray<float> da(const_array(d, 3.f));
+    da *= 2.f;
 
     auto result = da.to_host();
     bool ok = true;
     for (size_t i = 0; i < result.size(); ++i)
         ok = ok && (std::abs(result[i] - 6.f) < EPS);
-    check(ok, "scale_inplace: 3 * 2 = 6");
+    check(ok, "operator*=: 3 * 2 = 6");
 }
 
 void test_scale() {
     dims_t d{1, 2, 4};
-    auto ha = const_array(d, 5.f);
-    DeviceArray<float> da(ha);
-    auto out = gpu_arr::scale(da, 3.f);
+    DeviceArray<float> da(const_array(d, 5.f));
+    auto out = da * 3.f;
 
     auto result = out.to_host();
     auto orig   = da.to_host();
@@ -94,11 +92,42 @@ void test_scale() {
         ok = ok && (std::abs(result[i] - 15.f) < EPS);
     for (size_t i = 0; i < orig.size(); ++i)
         ok = ok && (std::abs(orig[i] - 5.f) < EPS);
-    check(ok, "scale: 5 * 3 = 15, original unchanged");
+    check(ok, "operator*: 5 * 3 = 15, original unchanged");
 }
 
+void test_divide_inplace() {
+    dims_t d{1, 2, 4};
+    DeviceArray<float> da(const_array(d, 12.f));
+    da /= 4.f;
+
+    auto result = da.to_host();
+    bool ok = true;
+    for (size_t i = 0; i < result.size(); ++i)
+        ok = ok && (std::abs(result[i] - 3.f) < EPS);
+    check(ok, "operator/=: 12 / 4 = 3");
+}
+
+void test_divide() {
+    dims_t d{1, 2, 4};
+    DeviceArray<float> da(const_array(d, 12.f));
+    auto out = da / 4.f;
+
+    auto result = out.to_host();
+    auto orig   = da.to_host();
+    bool ok = true;
+    for (size_t i = 0; i < result.size(); ++i)
+        ok = ok && (std::abs(result[i] - 3.f) < EPS);
+    for (size_t i = 0; i < orig.size(); ++i)
+        ok = ok && (std::abs(orig[i] - 12.f) < EPS);
+    check(ok, "operator/: 12 / 4 = 3, original unchanged");
+}
+
+// -------------------------------------------------------------------------
+// Tests — axpy / xpay free functions (still in device_array_ops.h)
+// -------------------------------------------------------------------------
+
 void test_axpy() {
-    // x += alpha * y  =>  1 + 3*2 = 7
+    // axpy: x = alpha * x + y  =>  3*1 + 2 = 5
     dims_t d{1, 2, 4};
     DeviceArray<float> dx(const_array(d, 1.f));
     DeviceArray<float> dy(const_array(d, 2.f));
@@ -107,11 +136,12 @@ void test_axpy() {
     auto result = dx.to_host();
     bool ok = true;
     for (size_t i = 0; i < result.size(); ++i)
-        ok = ok && (std::abs(result[i] - 7.f) < EPS);
-    check(ok, "axpy: x=1, y=2, alpha=3 => x=7");
+        ok = ok && (std::abs(result[i] - 5.f) < EPS);
+    check(ok, "axpy: x=1, y=2, alpha=3 => x = alpha*x+y = 5");
 }
 
 void test_axpy_zero_alpha() {
+    // axpy with alpha=0: x = 0 * x + y = y
     dims_t d{1, 1, 4};
     DeviceArray<float> dx(const_array(d, 7.f));
     DeviceArray<float> dy(const_array(d, 99.f));
@@ -120,12 +150,12 @@ void test_axpy_zero_alpha() {
     auto result = dx.to_host();
     bool ok = true;
     for (size_t i = 0; i < result.size(); ++i)
-        ok = ok && (std::abs(result[i] - 7.f) < EPS);
-    check(ok, "axpy: alpha=0 leaves x unchanged");
+        ok = ok && (std::abs(result[i] - 99.f) < EPS);
+    check(ok, "axpy: alpha=0 => x = y");
 }
 
 void test_xpay() {
-    // x = y + beta * x  =>  1 + 2*4 = 9
+    // xpay: x = x + beta * y  =>  4 + 2*1 = 6
     dims_t d{1, 2, 4};
     DeviceArray<float> dx(const_array(d, 4.f));
     DeviceArray<float> dy(const_array(d, 1.f));
@@ -134,99 +164,129 @@ void test_xpay() {
     auto result = dx.to_host();
     bool ok = true;
     for (size_t i = 0; i < result.size(); ++i)
-        ok = ok && (std::abs(result[i] - 9.f) < EPS);
-    check(ok, "xpay: x=4, y=1, beta=2 => x=9");
+        ok = ok && (std::abs(result[i] - 6.f) < EPS);
+    check(ok, "xpay: x=4, y=1, beta=2 => x = x+beta*y = 6");
 }
+
+// -------------------------------------------------------------------------
+// Tests — arithmetic operator overloads on DeviceArray
+// -------------------------------------------------------------------------
 
 void test_subtract() {
     dims_t d{1, 2, 4};
     DeviceArray<float> da(const_array(d, 7.f));
     DeviceArray<float> db(const_array(d, 3.f));
-    auto out = gpu_arr::subtract(da, db);
+    auto out = da - db;
 
     auto result = out.to_host();
     bool ok = true;
     for (size_t i = 0; i < result.size(); ++i)
         ok = ok && (std::abs(result[i] - 4.f) < EPS);
-    check(ok, "subtract: 7 - 3 = 4");
+    check(ok, "operator-: 7 - 3 = 4");
 }
 
 void test_subtract_inplace() {
     dims_t d{1, 2, 4};
     DeviceArray<float> da(const_array(d, 7.f));
     DeviceArray<float> db(const_array(d, 3.f));
-    gpu_arr::subtract_inplace(da, db);
+    da -= db;
 
     auto result = da.to_host();
     bool ok = true;
     for (size_t i = 0; i < result.size(); ++i)
         ok = ok && (std::abs(result[i] - 4.f) < EPS);
-    check(ok, "subtract_inplace: 7 - 3 = 4");
+    check(ok, "operator-=: 7 - 3 = 4");
 }
 
 void test_subtract_self_is_zero() {
     dims_t d{1, 2, 4};
     DeviceArray<float> da(iota_array(d, 1.f));
     auto db = da.clone();
-    auto out = gpu_arr::subtract(da, db);
+    auto out = da - db;
 
     auto result = out.to_host();
     bool ok = true;
     for (size_t i = 0; i < result.size(); ++i)
         ok = ok && (std::abs(result[i]) < EPS);
-    check(ok, "subtract: x - x = 0");
+    check(ok, "operator-: x - x = 0");
 }
 
 void test_add() {
     dims_t d{1, 2, 4};
     DeviceArray<float> da(const_array(d, 2.f));
     DeviceArray<float> db(const_array(d, 5.f));
-    auto out = gpu_arr::add(da, db);
+    auto out = da + db;
 
     auto result = out.to_host();
     bool ok = true;
     for (size_t i = 0; i < result.size(); ++i)
         ok = ok && (std::abs(result[i] - 7.f) < EPS);
-    check(ok, "add: 2 + 5 = 7");
+    check(ok, "operator+: 2 + 5 = 7");
 }
 
 void test_add_inplace() {
     dims_t d{1, 2, 4};
     DeviceArray<float> da(const_array(d, 2.f));
     DeviceArray<float> db(const_array(d, 5.f));
-    gpu_arr::add_inplace(da, db);
+    da += db;
 
     auto result = da.to_host();
     bool ok = true;
     for (size_t i = 0; i < result.size(); ++i)
         ok = ok && (std::abs(result[i] - 7.f) < EPS);
-    check(ok, "add_inplace: 2 + 5 = 7");
+    check(ok, "operator+=: 2 + 5 = 7");
 }
 
 void test_multiply() {
     dims_t d{1, 2, 4};
     DeviceArray<float> da(const_array(d, 3.f));
     DeviceArray<float> db(const_array(d, 4.f));
-    auto out = gpu_arr::multiply(da, db);
+    auto out = da * db;
 
     auto result = out.to_host();
     bool ok = true;
     for (size_t i = 0; i < result.size(); ++i)
         ok = ok && (std::abs(result[i] - 12.f) < EPS);
-    check(ok, "multiply: 3 * 4 = 12");
+    check(ok, "operator* (array): 3 * 4 = 12");
 }
 
 void test_multiply_inplace() {
     dims_t d{1, 2, 4};
     DeviceArray<float> da(const_array(d, 3.f));
     DeviceArray<float> db(const_array(d, 4.f));
-    gpu_arr::multiply_inplace(da, db);
+    da *= db;
 
     auto result = da.to_host();
     bool ok = true;
     for (size_t i = 0; i < result.size(); ++i)
         ok = ok && (std::abs(result[i] - 12.f) < EPS);
-    check(ok, "multiply_inplace: 3 * 4 = 12");
+    check(ok, "operator*= (array): 3 * 4 = 12");
+}
+
+void test_divide_array() {
+    dims_t d{1, 2, 4};
+    DeviceArray<float> da(const_array(d, 12.f));
+    DeviceArray<float> db(const_array(d, 4.f));
+    auto out = da / db;
+
+    auto result = out.to_host();
+    bool ok = true;
+    for (size_t i = 0; i < result.size(); ++i)
+        ok = ok && (std::abs(result[i] - 3.f) < EPS);
+    check(ok, "operator/ (array): 12 / 4 = 3");
+}
+
+void test_divide_array_inplace() {
+    dims_t d{1, 2, 4};
+    DeviceArray<float> da(const_array(d, 12.f));
+    DeviceArray<float> db(const_array(d, 4.f));
+    da /= db;
+
+    auto result = da.to_host();
+    bool ok = true;
+    for (size_t i = 0; i < result.size(); ++i)
+        ok = ok && (std::abs(result[i] - 3.f) < EPS);
+    check(ok, "operator/= (array): 12 / 4 = 3");
 }
 
 void test_abs() {
@@ -383,12 +443,18 @@ void test_to_real_vs_cpu() {
 int main() {
     std::cout << "=== device_array_ops tests ===\n\n";
 
-    std::cout << "-- GPU-only operations --\n";
+    std::cout << "-- Scalar operator overloads --\n";
     test_scale_inplace();
     test_scale();
+    test_divide_inplace();
+    test_divide();
+
+    std::cout << "\n-- axpy / xpay free functions --\n";
     test_axpy();
     test_axpy_zero_alpha();
     test_xpay();
+
+    std::cout << "\n-- Array operator overloads --\n";
     test_subtract();
     test_subtract_inplace();
     test_subtract_self_is_zero();
@@ -396,6 +462,10 @@ int main() {
     test_add_inplace();
     test_multiply();
     test_multiply_inplace();
+    test_divide_array();
+    test_divide_array_inplace();
+
+    std::cout << "\n-- Element-wise unary ops --\n";
     test_abs();
     test_sqrt();
 
