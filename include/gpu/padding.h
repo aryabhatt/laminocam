@@ -49,6 +49,9 @@ namespace tomocam::gpu {
     DeviceArray<T> crop3d(const DeviceArray<T> &input, dims_t out_dims,
                           PadType type);
 
+    template <typename T>
+    DeviceArray<T> pad3d(const DeviceArray<T> &input, dims_t out_dims, PadType type);
+
 } // namespace tomocam::gpu
 
 #endif // GPU_PADDING_H
