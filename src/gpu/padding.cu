@@ -110,9 +110,32 @@ namespace tomocam::gpu {
         return output;
     }
 
-    // Explicit template instantiations
     template DeviceArray<float> crop3d(const DeviceArray<float> &input,
                                        dims_t out_dims, PadType type);
     template DeviceArray<double> crop3d(const DeviceArray<double> &input,
                                         dims_t out_dims, PadType type);
+
+    template <typename T>
+    DeviceArray<T> pad3d(const DeviceArray<T> &input, dims_t out_dims, PadType type) {
+        dims_t dims = input.dims();
+        int3 offset = {0, 0, 0};
+        if (type == PadType::SYMMETRIC) {
+            offset.x = static_cast<int>((out_dims.n1 - dims.n1) / 2);
+            offset.y = static_cast<int>((out_dims.n2 - dims.n2) / 2);
+            offset.z = static_cast<int>((out_dims.n3 - dims.n3) / 2);
+        } else if (type == PadType::LEFT) {
+            offset.x = static_cast<int>(out_dims.n1 - dims.n1);
+            offset.y = static_cast<int>(out_dims.n2 - dims.n2);
+            offset.z = static_cast<int>(out_dims.n3 - dims.n3);
+        }
+        DeviceArray<T> output(out_dims);
+        dim3 blockSize = dim3(1, 8, 32);
+        dim3 gridSize = make_grid(dims, blockSize);
+        pad2d_kernel<T><<<gridSize, blockSize>>>(input, output, offset);
+        SAFE_CALL(cudaGetLastError());
+        return output;
+    }
+
+    template DeviceArray<float> pad3d(const DeviceArray<float> &, dims_t, PadType);
+    template DeviceArray<double> pad3d(const DeviceArray<double> &, dims_t, PadType);
 } // namespace tomocam::gpu
