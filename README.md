@@ -47,8 +47,9 @@ The library is optimized for performance using:
 
 ```bash
 # Linux
-cmake --preset arch
-cmake --build --preset arch
+cmake --preset linux-release
+cmake --build --preset release
+ctest --test-dir release --output-on-failure
 
 # macOS
 cmake --preset macos
