@@ -49,6 +49,10 @@ namespace tomocam::gpu {
     DeviceArray<T> crop3d(const DeviceArray<T> &input, dims_t out_dims,
                           PadType type);
 
+    // Crop with an explicit starting offset (in elements) along each dimension.
+    template <typename T>
+    DeviceArray<T> crop3d(const DeviceArray<T> &input, dims_t out_dims, dims_t offset);
+
     template <typename T>
     DeviceArray<T> pad3d(const DeviceArray<T> &input, dims_t out_dims, PadType type);
 
