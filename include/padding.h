@@ -128,5 +128,27 @@ namespace tomocam {
         }
         return arr2;
     }
+
+    // Crop with an explicit starting offset (in elements) along each dimension.
+    template <typename T>
+    Array<T> crop3d(const Array<T> &arr, dims_t new_dims, dims_t offset) {
+
+        Array<T> arr2(new_dims);
+        const T *src = arr.begin();
+        T *dst = arr2.begin();
+        const size_t in_rows = arr.nrows(), in_cols = arr.ncols();
+        const size_t out_rows = arr2.nrows(), out_cols = arr2.ncols();
+
+        #pragma omp parallel for collapse(2)
+        for (size_t i = 0; i < new_dims.n1; i++) {
+            for (size_t j = 0; j < new_dims.n2; j++) {
+                const T *row_src =
+                    src + ((i + offset.n1) * in_rows + (j + offset.n2)) * in_cols + offset.n3;
+                T *row_dst = dst + (i * out_rows + j) * out_cols;
+                std::copy(row_src, row_src + new_dims.n3, row_dst);
+            }
+        }
+        return arr2;
+    }
 } // namespace tomocam
 #endif // PADDING__H
