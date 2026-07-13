@@ -30,7 +30,7 @@
 
 namespace tomocam {
     template <typename T>
-    Array<T> sysmat(const Array<T> &x, const PolarGrid<T> &grid) {
+    Array<T> sysmat(const Array<T> &x, const cpu::PolarGrid<T> &grid) {
 
         T scale = static_cast<T>(grid.dims().n2 * grid.dims().n3);
         auto xcmplx = array::to_complex(x);
@@ -43,8 +43,10 @@ namespace tomocam {
         return array::to_real(xcmplx) / scale;
     }
     // Explicit instantiations
-    template Array<float> sysmat(const Array<float> &, const PolarGrid<float> &);
-    template Array<double> sysmat(const Array<double> &, const PolarGrid<double> &);
+    template Array<float> sysmat(const Array<float> &,
+                                 const cpu::PolarGrid<float> &);
+    template Array<double> sysmat(const Array<double> &,
+                                  const cpu::PolarGrid<double> &);
 
     // use Toeplitz method to compute the system matrix
     template <typename T>
