@@ -54,12 +54,12 @@ static bool test_adjoint(const dims_t &vol_dims, const std::vector<double> &thet
                          double gamma, double tol) {
     std::cout << "Adjoint       <Rx,y> = <x,R^T y>           ... ";
 
-    PolarGrid<double> pg(theta, std::vector<double>(theta.size(), gamma),
-                         vol_dims.n2, vol_dims.n3);
+    cpu::PolarGrid<double> pg(theta, std::vector<double>(theta.size(), gamma),
+                              vol_dims.n2, vol_dims.n3);
     auto x = Array<double>::random(vol_dims);
     auto y = Array<double>::random(pg.dims());
-    auto Rx = forward(x, pg, gamma);
-    auto RTy = backproj(y, pg, vol_dims, gamma);
+    auto Rx = forward(x, pg);
+    auto RTy = backproj(y, pg, vol_dims);
 
     double lhs = array::dot(Rx, y);
     double rhs = array::dot(x, RTy);
@@ -77,12 +77,12 @@ static bool test_quadratic(const dims_t &vol_dims, const std::vector<double> &th
                            double gamma, double tol) {
     std::cout << "Quadratic id  x^T Ax - 2<x,R^T y> + ||y||^2 = ||Rx-y||^2 ... ";
 
-    PolarGrid<double> pg(theta, std::vector<double>(theta.size(), gamma),
-                         vol_dims.n2, vol_dims.n3);
+    cpu::PolarGrid<double> pg(theta, std::vector<double>(theta.size(), gamma),
+                              vol_dims.n2, vol_dims.n3);
     auto x = Array<double>::random(vol_dims);
     auto y = Array<double>::random(pg.dims());
-    auto Rx = forward(x, pg, gamma);
-    auto RTy = backproj(y, pg, vol_dims, gamma);
+    auto Rx = forward(x, pg);
+    auto RTy = backproj(y, pg, vol_dims);
     auto Ax = sysmat(x, pg);
 
     double lhs = array::dot(x, Ax) - 2.0 * array::dot(x, RTy) + array::dot(y, y);
@@ -102,8 +102,8 @@ static bool test_sysmat_symmetry(const dims_t &vol_dims,
                                  double tol) {
     std::cout << "Sysmat sym    <u,Ax> = <x,Au>               ... ";
 
-    PolarGrid<double> pg(theta, std::vector<double>(theta.size(), gamma),
-                         vol_dims.n2, vol_dims.n3);
+    cpu::PolarGrid<double> pg(theta, std::vector<double>(theta.size(), gamma),
+                              vol_dims.n2, vol_dims.n3);
     auto x = Array<double>::random(vol_dims);
     auto u = Array<double>::random(vol_dims);
     auto Ax = sysmat(x, pg);
@@ -124,8 +124,8 @@ static bool test_sysmat_psd(const dims_t &vol_dims, const std::vector<double> &t
                             double gamma) {
     std::cout << "Sysmat PSD    <x,Ax> >= 0                   ... ";
 
-    PolarGrid<double> pg(theta, std::vector<double>(theta.size(), gamma),
-                         vol_dims.n2, vol_dims.n3);
+    cpu::PolarGrid<double> pg(theta, std::vector<double>(theta.size(), gamma),
+                              vol_dims.n2, vol_dims.n3);
     auto x = Array<double>::random(vol_dims);
     auto Ax = sysmat(x, pg);
 
