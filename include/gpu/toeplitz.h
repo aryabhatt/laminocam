@@ -44,6 +44,18 @@ namespace tomocam::gpu {
         dims_t dims_;
         DeviceArray<complex_t> kernel_hat_;
 
+        // Returns the smallest n' >= n of the form 2^p * 3^q (fast for cuFFT).
+        static size_t next_fast_dim(size_t n) {
+            size_t best = 1;
+            while (best < n) best <<= 1;
+            for (size_t q3 = 3; q3 < best; q3 *= 3) {
+                size_t x = q3;
+                while (x < n) x <<= 1;
+                if (x < best) best = x;
+            }
+            return best;
+        }
+
       public:
         PointSpreadFunction() = default;
 
@@ -51,8 +63,8 @@ namespace tomocam::gpu {
         PointSpreadFunction(dims_t dims, const DeviceArray<complex_t> &kernel_hat)
             : dims_(dims), kernel_hat_(kernel_hat) {}
 
-        // upload a CPU-computed kernel hat (from FINUFFT) to GPU to save device memory;
-        // std::complex<T> and cuda::std::complex<T> are ABI-compatible
+        // upload a CPU-computed kernel hat (from FINUFFT) to GPU to save device
+        // memory; std::complex<T> and cuda::std::complex<T> are ABI-compatible
         PointSpreadFunction(dims_t dims, const Array<std::complex<T>> &cpu_kernel)
             : dims_(dims) {
             static_assert(sizeof(std::complex<T>) == sizeof(complex_t),
@@ -68,8 +80,14 @@ namespace tomocam::gpu {
         PointSpreadFunction(const gpu::PolarGrid<T> &grid, dims_t recon_dims) {
 
             dims_t proj_dims = grid.dims();
-            dims_ = {2 * recon_dims.n1 - 1, 2 * recon_dims.n2 - 1,
-                     2 * recon_dims.n3 - 1};
+            dims_ = {next_fast_dim(2 * recon_dims.n1 - 1),
+                     next_fast_dim(2 * recon_dims.n2 - 1),
+                     next_fast_dim(2 * recon_dims.n3 - 1)};
+#ifdef DEBUG
+            std::cout << std::format(
+                "Toeplitz PSF: recon_dims={} -> proj_dims={} -> padded dims={}\n",
+                recon_dims.to_string(), proj_dims.to_string(), dims_.to_string());
+#endif
 
             // One-shot plan (not cached): used exactly once for PSF construction.
             auto ones = DeviceArray<complex_t>(proj_dims);
@@ -107,7 +125,10 @@ namespace tomocam::gpu {
             T norm = static_cast<T>(dims_.n1 * dims_.n2 * dims_.n3) *
                      static_cast<T>(orig_dims.n2 * orig_dims.n3);
 
-            return gpu::crop3d(result, orig_dims, PadType::LEFT) / norm;
+            // The FINUFFT type-1 PSF is in CMCL order: center at dims_/2.
+            // Valid linear-conv output starts at that same offset.
+            dims_t center{dims_.n1 / 2, dims_.n2 / 2, dims_.n3 / 2};
+            return gpu::crop3d(result, orig_dims, center) / norm;
         }
     };
 
