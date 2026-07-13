@@ -130,7 +130,7 @@ namespace tomocam::nufft {
 
         bool valid() const { return initialized_; }
 
-        void set_points(const tomocam::PolarGrid<T> &pg) {
+        void set_points(const cpu::PolarGrid<T> &pg) {
             if (!initialized_)
                 throw std::runtime_error(
                     "FinufftPlanWrapper::set_points: plan not initialized");
