@@ -109,7 +109,8 @@ namespace tomocam::gpu {
 
             // try GPU NUFFT first; fall back to CPU if device memory is insufficient
             try {
-                auto gpu_grid = PolarGrid<T>(theta, gamma, padded_nrows, padded_ncols);
+                auto gpu_grid =
+                    PolarGrid<T>(theta, gamma, padded_nrows, padded_ncols);
                 DeviceArray<T> d_p(stacked_projs);
                 yT = backproj(d_p, gpu_grid, recon_dims);
                 psf = PointSpreadFunction<T>(gpu_grid, recon_dims);
@@ -118,8 +119,8 @@ namespace tomocam::gpu {
                     "GPU backprojection/PSF failed ({}); falling back to CPU\n",
                     e.what());
                 cudaGetLastError(); // reset any sticky CUDA error state
-                auto cpu_grid =
-                    tomocam::PolarGrid<T>(theta, gamma, padded_nrows, padded_ncols);
+                auto cpu_grid = tomocam::cpu::PolarGrid<T>(
+                    theta, gamma, padded_nrows, padded_ncols);
                 yT = DeviceArray<T>(
                     tomocam::backproj(stacked_projs, cpu_grid, recon_dims));
                 auto cpu_psf =
