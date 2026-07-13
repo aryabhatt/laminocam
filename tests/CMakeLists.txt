@@ -1,4 +1,8 @@
 
+add_executable(test_cg_normal test_cg_normal.cpp)
+target_link_libraries(test_cg_normal PUBLIC tomocam_scalar)
+add_test(NAME cg_normal COMMAND test_cg_normal)
+
 add_executable(test_adjoint test_adjoint.cpp)
 target_link_libraries(test_adjoint PUBLIC tomocam_scalar)
 add_test(NAME adjoint COMMAND test_adjoint)
