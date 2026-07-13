@@ -52,8 +52,8 @@ static bool test_sysmat_agreement(const dims_t &vol_dims,
         "vol({},{},{}) nangles={:<3}  sysmat NUFFT vs Toeplitz\n", vol_dims.n1,
         vol_dims.n2, vol_dims.n3, theta.size());
 
-    PolarGrid<double> pg(theta, std::vector<double>(theta.size(), gamma),
-                         vol_dims.n2, vol_dims.n3);
+    cpu::PolarGrid<double> pg(theta, std::vector<double>(theta.size(), gamma),
+                              vol_dims.n2, vol_dims.n3);
     cpu::PointSpreadFunction<double> psf(pg, vol_dims);
 
     auto x = Array<double>::random(vol_dims);
@@ -63,11 +63,13 @@ static bool test_sysmat_agreement(const dims_t &vol_dims,
 
     double n_nufft = array::norm2(nufft_result);
     double n_toeplitz = array::norm2(toeplitz_result);
-    double scale_ratio = (n_nufft > 0) ? n_toeplitz / n_nufft : 0.0;
+
+    double scale_ratio =
+        array::dot(nufft_result, toeplitz_result) / (n_toeplitz * n_toeplitz);
     double cos_sim = cosine_sim(nufft_result, toeplitz_result);
 
     // normalised relative difference: compare nufft with toeplitz / scale_ratio
-    auto toeplitz_scaled = toeplitz_result * (1.0 / scale_ratio);
+    auto toeplitz_scaled = toeplitz_result * scale_ratio;
     auto diff = nufft_result - toeplitz_scaled;
     double rel_diff_norm = array::norm2(diff) / n_nufft;
 
