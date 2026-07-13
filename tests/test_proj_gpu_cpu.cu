@@ -43,16 +43,14 @@
 // CPU projection/sysmat declarations (avoid tomocam.h which pulls in toml++)
 namespace tomocam {
     template <typename T>
-    Array<T> forward(const Array<T> &volume, const PolarGrid<T> &grid,
-                     T gamma = T(0));
+    Array<T> forward(const Array<T> &volume, const cpu::PolarGrid<T> &grid);
 
     template <typename T>
-    Array<T> backward(const Array<T> &projections, const PolarGrid<T> &grid,
-                      const dims_t &dims, T gamma = T(0), bool filter = false,
-                      const std::string &filter_type = "");
+    Array<T> backproj(const Array<T> &projections, const cpu::PolarGrid<T> &grid,
+                      const dims_t &dims);
 
     template <typename T>
-    Array<T> sysmat(const Array<T> &x, const PolarGrid<T> &grid);
+    Array<T> sysmat(const Array<T> &x, const cpu::PolarGrid<T> &grid);
 } // namespace tomocam
 
 // GPU headers
@@ -122,7 +120,8 @@ static std::vector<float> make_theta() {
 // Test: forward  CPU vs GPU
 // -------------------------------------------------------------------------
 
-void test_forward(const Array<float> &vol, const PolarGrid<float> &cpu_pg,
+void test_forward(const Array<float> &vol,
+                  const tomocam::cpu::PolarGrid<float> &cpu_pg,
                   const tomocam::gpu::PolarGrid<float> &gpu_pg) {
 
     // CPU
@@ -141,15 +140,16 @@ void test_forward(const Array<float> &vol, const PolarGrid<float> &cpu_pg,
 // Test: backward (adjoint)  CPU vs GPU
 // -------------------------------------------------------------------------
 
-void test_backward(const Array<float> &proj, const PolarGrid<float> &cpu_pg,
+void test_backward(const Array<float> &proj,
+                   const tomocam::cpu::PolarGrid<float> &cpu_pg,
                    const tomocam::gpu::PolarGrid<float> &gpu_pg, dims_t vol_dims) {
 
     // CPU (unfiltered backprojection)
-    auto cpu_vol = tomocam::backward(proj, cpu_pg, vol_dims);
+    auto cpu_vol = tomocam::backproj(proj, cpu_pg, vol_dims);
 
     // GPU: upload projections, run, download
     DeviceArray<float> d_proj(proj);
-    auto d_vol = tomocam::gpu::backward(d_proj, gpu_pg, vol_dims);
+    auto d_vol = tomocam::gpu::backproj(d_proj, gpu_pg, vol_dims);
     auto gpu_vol = d_vol.to_host();
 
     float err = rel_error(cpu_vol, gpu_vol);
@@ -160,7 +160,8 @@ void test_backward(const Array<float> &proj, const PolarGrid<float> &cpu_pg,
 // Test: sysmat  CPU vs GPU
 // -------------------------------------------------------------------------
 
-void test_sysmat(const Array<float> &vol, const PolarGrid<float> &cpu_pg,
+void test_sysmat(const Array<float> &vol,
+                 const tomocam::cpu::PolarGrid<float> &cpu_pg,
                  const tomocam::gpu::PolarGrid<float> &gpu_pg) {
 
     // CPU
@@ -190,7 +191,7 @@ int main() {
 
     // Build both grids from the same angle set
     std::vector<float> gamma(NTHETA, 0.f);
-    PolarGrid<float> cpu_pg(theta, gamma, N, N);
+    tomocam::cpu::PolarGrid<float> cpu_pg(theta, gamma, N, N);
     tomocam::gpu::PolarGrid<float> gpu_pg(theta, gamma, N, N);
 
     // Random volume and random projections (same seed → reproducible)
