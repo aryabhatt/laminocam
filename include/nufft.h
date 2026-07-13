@@ -35,7 +35,7 @@ namespace tomocam::nufft {
     // 3D Type-1 NUFFT: nonuniform points to uniform grid
     template <typename T>
     void nufft3d1(const Array<std::complex<T>> &cz, Array<std::complex<T>> &fz,
-                  const PolarGrid<T> &pg) {
+                  const cpu::PolarGrid<T> &pg) {
         std::array<int64_t, 3> n_modes = {static_cast<int64_t>(fz.ncols()),
                                           static_cast<int64_t>(fz.nrows()),
                                           static_cast<int64_t>(fz.nslices())};
@@ -47,7 +47,7 @@ namespace tomocam::nufft {
     // 3D Type-2 NUFFT: uniform grid to nonuniform points
     template <typename T>
     void nufft3d2(Array<std::complex<T>> &cz, const Array<std::complex<T>> &fz,
-                  const PolarGrid<T> &pg) {
+                  const cpu::PolarGrid<T> &pg) {
         std::array<int64_t, 3> n_modes = {static_cast<int64_t>(fz.ncols()),
                                           static_cast<int64_t>(fz.nrows()),
                                           static_cast<int64_t>(fz.nslices())};
