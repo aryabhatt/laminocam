@@ -31,30 +31,14 @@
 namespace tomocam {
 
     template <typename T>
-    Array<T> forward(const Array<T> &volume, const PolarGrid<T> &grid,
-                     T gamma = T(0));
+    Array<T> forward(const Array<T> &volume, const cpu::PolarGrid<T> &grid);
 
     template <typename T>
-    Array<T> backward(const Array<T> &projections, const PolarGrid<T> &grid,
-                      const dims_t &dims, T gamma, bool filter,
-                      const std::string &filter_type);
+    Array<T> backproj(const Array<T> &projections, const cpu::PolarGrid<T> &grid,
+                      const dims_t &dims);
 
     template <typename T>
-    Array<T> backproj(const Array<T> &projections, const PolarGrid<T> &grid,
-                      const dims_t &dims, T gamma = T(0)) {
-        std::string filter_type = "";
-        return backward(projections, grid, dims, gamma, false, filter_type);
-    }
-
-    template <typename T>
-    Array<T> fbp(const Array<T> &projections, const PolarGrid<T> &grid,
-                 const dims_t &dims, const std::string &filter_type = "ramp",
-                 T gamma = T(0)) {
-        return backward(projections, grid, dims, gamma, true, filter_type);
-    }
-
-    template <typename T>
-    Array<T> sysmat(const Array<T> &x, const PolarGrid<T> &grid);
+    Array<T> sysmat(const Array<T> &x, const cpu::PolarGrid<T> &grid);
 
     template <typename T>
     Array<T> sysmat(const Array<T> &x, const cpu::PointSpreadFunction<T> &psf);
