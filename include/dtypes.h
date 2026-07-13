@@ -20,8 +20,10 @@
 
 #include <array>
 #include <cstdint>
+#include <format>
 #include <ostream>
 #include <stdexcept>
+#include <string>
 #include <tuple>
 
 #ifndef DTYPES__H
@@ -88,7 +90,7 @@ namespace tomocam {
     };
 
     inline std::ostream &operator<<(std::ostream &outs, dims_t d) {
-        outs << "dims_t(" << d.x() << ", " << d.y() << ", " << d.z() << ")";
+        outs << std::format("dims_t({}, {}, {})", d.x(), d.y(), d.z());
         return outs;
     }
 
