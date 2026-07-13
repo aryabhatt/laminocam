@@ -26,12 +26,12 @@
 #include "array.h"
 #include "array_ops.h"
 #include "dtypes.h"
-#include "nufft.h"
-#include "polar_grid.h"
 #include "gpu/device_array.h"
 #include "gpu/device_array_ops.h"
 #include "gpu/nufft.h"
 #include "gpu/polar_grid.h"
+#include "nufft.h"
+#include "polar_grid.h"
 
 using namespace tomocam;
 
@@ -50,7 +50,7 @@ upload_complex(const Array<std::complex<double>> &h) {
 // Download device complex array to host std::complex array.
 static Array<std::complex<double>>
 download_complex(const gpu::DeviceArray<cuda::std::complex<double>> &d) {
-    auto tmp = d.to_host();  // Array<cuda::std::complex<double>>
+    auto tmp = d.to_host(); // Array<cuda::std::complex<double>>
     Array<std::complex<double>> h(tmp.dims());
     std::memcpy(h.begin(), tmp.begin(), tmp.size() * sizeof(std::complex<double>));
     return h;
@@ -59,11 +59,11 @@ download_complex(const gpu::DeviceArray<cuda::std::complex<double>> &d) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Type-1: non-uniform → uniform
 // ─────────────────────────────────────────────────────────────────────────────
-bool test_nufft3d1_cpu_vs_gpu(size_t nangles, size_t nrows, size_t ncols,
-                               size_t nz,      size_t ny,    size_t nx) {
-    std::cout << "nufft3d1 CPU vs GPU: grid=(" << nangles << "," << nrows
-              << "," << ncols << ") vol=(" << nz << "," << ny << "," << nx
-              << ") ... " << std::flush;
+bool test_nufft3d1_cpu_vs_gpu(size_t nangles, size_t nrows, size_t ncols, size_t nz,
+                              size_t ny, size_t nx) {
+    std::cout << "nufft3d1 CPU vs GPU: grid=(" << nangles << "," << nrows << ","
+              << ncols << ") vol=(" << nz << "," << ny << "," << nx << ") ... "
+              << std::flush;
 
     // Equal-spaced angles in [0, π)
     std::vector<double> theta(nangles);
@@ -72,7 +72,7 @@ bool test_nufft3d1_cpu_vs_gpu(size_t nangles, size_t nrows, size_t ncols,
     std::vector<double> gamma(nangles, 0.0);
 
     // CPU and GPU polar grids from identical angles
-    PolarGrid<double>     cpu_pg(theta, gamma, nrows, ncols);
+    cpu::PolarGrid<double> cpu_pg(theta, gamma, nrows, ncols);
     gpu::PolarGrid<double> gpu_pg(theta, gamma, nrows, ncols);
 
     // Random real input → complex source values
@@ -97,9 +97,9 @@ bool test_nufft3d1_cpu_vs_gpu(size_t nangles, size_t nrows, size_t ncols,
     double max_abs_diff = 0.0, max_ref = 0.0;
     for (size_t i = 0; i < h_fz.size(); ++i) {
         double diff = std::abs(h_fz[i] - h_fz_gpu[i]);
-        double ref  = std::abs(h_fz[i]);
+        double ref = std::abs(h_fz[i]);
         if (diff > max_abs_diff) max_abs_diff = diff;
-        if (ref  > max_ref)      max_ref      = ref;
+        if (ref > max_ref) max_ref = ref;
     }
     double rel = (max_ref > 0.0) ? max_abs_diff / max_ref : max_abs_diff;
 
@@ -117,19 +117,19 @@ bool test_nufft3d1_cpu_vs_gpu(size_t nangles, size_t nrows, size_t ncols,
 // ─────────────────────────────────────────────────────────────────────────────
 // Type-2: uniform → non-uniform
 // ─────────────────────────────────────────────────────────────────────────────
-bool test_nufft3d2_cpu_vs_gpu(size_t nangles, size_t nrows, size_t ncols,
-                               size_t nz,      size_t ny,    size_t nx) {
-    std::cout << "nufft3d2 CPU vs GPU: grid=(" << nangles << "," << nrows
-              << "," << ncols << ") vol=(" << nz << "," << ny << "," << nx
-              << ") ... " << std::flush;
+bool test_nufft3d2_cpu_vs_gpu(size_t nangles, size_t nrows, size_t ncols, size_t nz,
+                              size_t ny, size_t nx) {
+    std::cout << "nufft3d2 CPU vs GPU: grid=(" << nangles << "," << nrows << ","
+              << ncols << ") vol=(" << nz << "," << ny << "," << nx << ") ... "
+              << std::flush;
 
     std::vector<double> theta(nangles);
     for (size_t i = 0; i < nangles; ++i)
         theta[i] = M_PI * static_cast<double>(i) / static_cast<double>(nangles);
     std::vector<double> gamma(nangles, 0.0);
 
-    PolarGrid<double>      cpu_pg(theta, gamma, nrows, ncols);
-    gpu::PolarGrid<double>  gpu_pg(theta, gamma, nrows, ncols);
+    cpu::PolarGrid<double> cpu_pg(theta, gamma, nrows, ncols);
+    gpu::PolarGrid<double> gpu_pg(theta, gamma, nrows, ncols);
 
     // Random complex uniform-grid input (the Fourier volume)
     dims_t vol_dims{nz, ny, nx};
@@ -139,8 +139,7 @@ bool test_nufft3d2_cpu_vs_gpu(size_t nangles, size_t nrows, size_t ncols,
         h_imag[i] = static_cast<double>(rand()) / RAND_MAX;
     }
     Array<std::complex<double>> h_fz(vol_dims);
-    for (size_t i = 0; i < h_fz.size(); ++i)
-        h_fz[i] = {h_real[i], h_imag[i]};
+    for (size_t i = 0; i < h_fz.size(); ++i) h_fz[i] = {h_real[i], h_imag[i]};
 
     // ── CPU ──────────────────────────────────────────────────────────────────
     dims_t grid_dims{nangles, nrows, ncols};
@@ -157,9 +156,9 @@ bool test_nufft3d2_cpu_vs_gpu(size_t nangles, size_t nrows, size_t ncols,
     double max_abs_diff = 0.0, max_ref = 0.0;
     for (size_t i = 0; i < h_cz.size(); ++i) {
         double diff = std::abs(h_cz[i] - h_cz_gpu[i]);
-        double ref  = std::abs(h_cz[i]);
+        double ref = std::abs(h_cz[i]);
         if (diff > max_abs_diff) max_abs_diff = diff;
-        if (ref  > max_ref)      max_ref      = ref;
+        if (ref > max_ref) max_ref = ref;
     }
     double rel = (max_ref > 0.0) ? max_abs_diff / max_ref : max_abs_diff;
 
@@ -184,15 +183,15 @@ int main() {
 
     // ── Type-1 tests ─────────────────────────────────────────────────────────
     std::cout << "--- Type-1 (non-uniform → uniform) CPU vs GPU ---\n";
-    tally(test_nufft3d1_cpu_vs_gpu(8,  16, 16,  16, 16, 16));
-    tally(test_nufft3d1_cpu_vs_gpu(12, 20, 18,  20, 18, 16));
-    tally(test_nufft3d1_cpu_vs_gpu(6,  12, 14,  14, 12, 10));
+    tally(test_nufft3d1_cpu_vs_gpu(8, 16, 16, 16, 16, 16));
+    tally(test_nufft3d1_cpu_vs_gpu(12, 20, 18, 20, 18, 16));
+    tally(test_nufft3d1_cpu_vs_gpu(6, 12, 14, 14, 12, 10));
 
     // ── Type-2 tests ─────────────────────────────────────────────────────────
     std::cout << "\n--- Type-2 (uniform → non-uniform) CPU vs GPU ---\n";
-    tally(test_nufft3d2_cpu_vs_gpu(8,  16, 16,  16, 16, 16));
-    tally(test_nufft3d2_cpu_vs_gpu(12, 20, 18,  20, 18, 16));
-    tally(test_nufft3d2_cpu_vs_gpu(6,  12, 14,  14, 12, 10));
+    tally(test_nufft3d2_cpu_vs_gpu(8, 16, 16, 16, 16, 16));
+    tally(test_nufft3d2_cpu_vs_gpu(12, 20, 18, 20, 18, 16));
+    tally(test_nufft3d2_cpu_vs_gpu(6, 12, 14, 14, 12, 10));
 
     std::cout << "\nResults: " << passed << " passed, " << failed << " failed\n";
 
