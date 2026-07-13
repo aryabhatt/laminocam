@@ -17,8 +17,8 @@
  * perform publicly and display publicly, and to permit other to do so.
  *---------------------------------------------------------------------------------
  */
-#ifndef POLAR_GRID__H
-#define POLAR_GRID__H
+#ifndef CPU_POLAR_GRID_H
+#define CPU_POLAR_GRID_H
 
 #include "array.h"
 #include "array_ops.h"
@@ -27,7 +27,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace tomocam {
+namespace tomocam::cpu {
 
     template <typename T>
     struct PolarGrid {
@@ -85,6 +85,6 @@ namespace tomocam {
         }
     };
 
-} // namespace tomocam
+} // namespace tomocam::cpu
 
-#endif // POLAR_GRID__H
+#endif // CPU_POLAR_GRID_H
