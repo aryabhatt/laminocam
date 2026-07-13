@@ -35,7 +35,7 @@ constexpr double factor = 1.4142135624;
 namespace tomocam {
 
     template <typename T>
-    Array<T> forward(const Array<T> &volume, const PolarGrid<T> &pg, T gamma) {
+    Array<T> forward(const Array<T> &volume, const cpu::PolarGrid<T> &pg) {
 
         // cast double array to complex
         auto Ft = array::to_complex(volume);
@@ -54,15 +54,14 @@ namespace tomocam {
         return array::to_real<T>(C) / scale;
     }
     // Explicit instantiation forward
-    template Array<float> forward(const Array<float> &, const PolarGrid<float> &,
-                                  float);
-    template Array<double> forward(const Array<double> &, const PolarGrid<double> &,
-                                   double);
+    template Array<float> forward(const Array<float> &,
+                                  const cpu::PolarGrid<float> &);
+    template Array<double> forward(const Array<double> &,
+                                   const cpu::PolarGrid<double> &);
 
     template <typename T>
-    Array<T> backward(const Array<T> &proj, const PolarGrid<T> &pg,
-                      const dims_t &recon_dims, T gamma, bool use_filter,
-                      const std::string &filter_type) {
+    Array<T> backproj(const Array<T> &proj, const cpu::PolarGrid<T> &pg,
+                      const dims_t &recon_dims) {
 
         // cast to complex
         auto C = array::to_complex(proj);
@@ -81,11 +80,10 @@ namespace tomocam {
         return array::to_real<T>(F) / scale;
     }
 
-    // Explicit instantiation backward
-    template Array<float> backward(const Array<float> &, const PolarGrid<float> &,
-                                   const dims_t &, float, bool, const std::string &);
-    template Array<double> backward(const Array<double> &, const PolarGrid<double> &,
-                                    const dims_t &, double, bool,
-                                    const std::string &);
+    // Explicit instantiation backproj
+    template Array<float> backproj(const Array<float> &,
+                                   const cpu::PolarGrid<float> &, const dims_t &);
+    template Array<double> backproj(const Array<double> &,
+                                    const cpu::PolarGrid<double> &, const dims_t &);
 
 } // namespace tomocam
