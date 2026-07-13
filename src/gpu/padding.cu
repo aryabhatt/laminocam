@@ -116,6 +116,23 @@ namespace tomocam::gpu {
                                         dims_t out_dims, PadType type);
 
     template <typename T>
+    DeviceArray<T> crop3d(const DeviceArray<T> &input, dims_t out_dims,
+                          dims_t offset) {
+        int3 off = {(int)offset.n1, (int)offset.n2, (int)offset.n3};
+        DeviceArray<T> output(out_dims);
+        dim3 blockSize = dim3(1, 8, 32);
+        dim3 gridSize = make_grid(out_dims, blockSize);
+        crop3d_kernel<T><<<gridSize, blockSize>>>(input, output, off);
+        SAFE_CALL(cudaGetLastError());
+        return output;
+    }
+
+    template DeviceArray<float> crop3d(const DeviceArray<float> &input,
+                                       dims_t out_dims, dims_t offset);
+    template DeviceArray<double> crop3d(const DeviceArray<double> &input,
+                                        dims_t out_dims, dims_t offset);
+
+    template <typename T>
     DeviceArray<T> pad3d(const DeviceArray<T> &input, dims_t out_dims, PadType type) {
         dims_t dims = input.dims();
         int3 offset = {0, 0, 0};
