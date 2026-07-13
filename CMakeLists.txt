@@ -91,7 +91,13 @@ add_executable(recon_scalar src/recon.cpp)
 target_link_libraries(recon_scalar PRIVATE tomocam_scalar tomlplusplus::tomlplusplus)
 target_link_libraries(recon_scalar PRIVATE TIFF::TIFF ${HDF5_LIBRARIES})
 
+# forward projection executable
+add_executable(forward_scalar src/radon.cpp)
+target_link_libraries(forward_scalar PRIVATE tomocam_scalar tomlplusplus::tomlplusplus)
+target_link_libraries(forward_scalar PRIVATE TIFF::TIFF ${HDF5_LIBRARIES})
+
 install(TARGETS recon_scalar RUNTIME DESTINATION bin)
+install(TARGETS forward_scalar RUNTIME DESTINATION bin)
 install(TARGETS tomocam_scalar LIBRARY DESTINATION lib)
 
 option(ENABLE_TESTS "Enable tests" OFF)
