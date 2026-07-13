@@ -69,6 +69,7 @@ namespace tomocam {
         proj_dims.n1 = n_projs;
         std::vector<T> theta;
         std::vector<T> gamma;
+        cpu::PolarGrid<T> pg;
         cpu::PointSpreadFunction<T> psf;
         Array<T> yT;
         {
@@ -96,11 +97,11 @@ namespace tomocam {
 
             // pad projections to avoid aliasing
             stacked_projs = pad2d(stacked_projs, padfac, PadType::SYMMETRIC);
-            size_t nrows = stacked_projs.dims().n2;
-            size_t ncols = stacked_projs.dims().n3;
+            size_t nrows = stacked_projs.nrows();
+            size_t ncols = stacked_projs.ncols();
 
             // build polar grid for system matrix
-            auto pg = PolarGrid<T>(theta, gamma, nrows, ncols);
+            pg = cpu::PolarGrid<T>(theta, gamma, nrows, ncols);
 
             // compute backprojection from stacked projections
             yT = backproj(stacked_projs, pg, out_dims);
@@ -111,6 +112,7 @@ namespace tomocam {
 
         // build system operator that sums over all datasets
         opt::Function<T> A = [&psf](const Array<T> &x) { return sysmat(x, psf); };
+        // opt::Function<T> A = [&pg](const Array<T> &x) { return sysmat(x, pg); };
 
         // initialize reconstruction with zeros
         auto x0 = Array<T>::zeros(out_dims);
