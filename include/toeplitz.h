@@ -20,6 +20,17 @@ namespace tomocam::cpu {
         dims_t dims_;
         Array<complex_t> kernel_hat_;
 
+        static size_t next_fast_dim(size_t n) {
+            size_t best = 1;
+            while (best < n) best <<= 1;
+            for (size_t q3 = 3; q3 < best; q3 *= 3) {
+                size_t x = q3;
+                while (x < n) x <<= 1;
+                if (x < best) best = x;
+            }
+            return best;
+        }
+
       public:
         [[nodiscard]] dims_t dims() const { return dims_; }
         [[nodiscard]] const Array<complex_t> &kernel_hat() const {
@@ -31,8 +42,9 @@ namespace tomocam::cpu {
         PointSpreadFunction(const PolarGrid<T> &grid, dims_t recon_dims) {
 
             dims_t proj_dims = grid.dims();
-            dims_ = {2 * recon_dims.n1 - 1, 2 * recon_dims.n2 - 1,
-                     2 * recon_dims.n3 - 1};
+            dims_ = {next_fast_dim(2 * recon_dims.n1 - 1),
+                     next_fast_dim(2 * recon_dims.n2 - 1),
+                     next_fast_dim(2 * recon_dims.n3 - 1)};
             dims_t fft_dims = {dims_.n1, dims_.n2, dims_.n3 / 2 + 1};
 
             // unit weights at non-uniform grid points
@@ -90,9 +102,11 @@ namespace tomocam::cpu {
             T norm = static_cast<T>(pad_dims.n1 * pad_dims.n2 * pad_dims.n3) *
                      static_cast<T>(orig_dims.n2 * orig_dims.n3);
 
-            // FFTW circular conv: z[k+(N-1)] = N_pad*scale * out_nufft[k],
-            // so the valid output starts at offset (N1-1, N2-1, N3-1) = crop_size.
-            return crop3d(result, orig_dims, PadType::RIGHT) / norm;
+            // The FINUFFT type-1 output is in CMCL ordering: the PSF center (k=0)
+            // sits at index dims_/2 in the padded array.  The valid linear-
+            // convolution result therefore starts at that same offset.
+            dims_t center{dims_.n1 / 2, dims_.n2 / 2, dims_.n3 / 2};
+            return crop3d(result, orig_dims, center) / norm;
         }
     };
 } // namespace tomocam::cpu
