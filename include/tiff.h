@@ -48,6 +48,9 @@ namespace tomocam::tiff {
         size_t nscls = static_cast<size_t>(npages);
         size_t nrows = static_cast<size_t>(h);
         size_t ncols = static_cast<size_t>(w);
+        // if nrows and ncols are even, make them odd
+        if (nrows % 2 == 0) nrows--;
+        if (ncols % 2 == 0) ncols--;
         Array<float> data(nscls, nrows, ncols);
 
         float *buf = (float *)_TIFFmalloc(w * sizeof(float));
@@ -60,7 +63,7 @@ namespace tomocam::tiff {
 
         for (size_t i = 0; i < nscls; i++) {
             TIFFSetDirectory(tif_, static_cast<tdir_t>(i));
-            for (size_t j = 0; j < h; j++) {
+            for (size_t j = 0; j < nrows; j++) {
                 if (TIFFReadScanline(tif_, buf, static_cast<uint32_t>(j)) < 0) {
                     std::cerr << "Error: failed to read scanline: " << i
                               << std::endl;
