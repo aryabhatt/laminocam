@@ -143,6 +143,10 @@ namespace tomocam {
                         std::format("Angles file does not exist: {}", *angles_path));
                 projs  = tomocam::tiff::read(*filename);
                 angles = read_angles_file<T>(*angles_path);
+                if (projs.nslices() != angles.size())
+                    throw std::runtime_error(std::format(
+                        "'{}' has {} pages but '{}' has {} entries",
+                        *filename, projs.nslices(), *angles_path, angles.size()));
             } else if (ext == ".h5" || ext == ".hdf5") {
                 auto angles_ds =
                     (*input_table)["angles"].value_or<std::string>("/coords/alpha");
@@ -150,6 +154,10 @@ namespace tomocam {
                 auto raw   = tomocam::h5::read_angles(*filename, angles_ds);
                 angles.assign(raw.begin(), raw.end());
                 to_radians(angles);
+                if (projs.nslices() != angles.size())
+                    throw std::runtime_error(std::format(
+                        "'{}' images has {} slices but angles dataset '{}' has {} entries",
+                        *filename, projs.nslices(), angles_ds, angles.size()));
             } else {
                 throw std::runtime_error(
                     std::format("Unsupported file extension '{}': {}", ext, *filename));
