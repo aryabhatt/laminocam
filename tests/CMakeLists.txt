@@ -12,6 +12,10 @@ target_link_libraries(test_sysmat_toeplitz PUBLIC tomocam_scalar)
 add_test(NAME sysmat_toeplitz COMMAND test_sysmat_toeplitz)
 
 if (USE_GPU)
+    add_executable(test_padding test_padding.cu)
+    target_link_libraries(test_padding PUBLIC tomocam_scalar)
+    add_test(NAME padding COMMAND test_padding)
+
     add_executable(test_proj_gpu_cpu test_proj_gpu_cpu.cu)
     target_link_libraries(test_proj_gpu_cpu PUBLIC tomocam_scalar)
     add_test(NAME proj_gpu_cpu COMMAND test_proj_gpu_cpu)
