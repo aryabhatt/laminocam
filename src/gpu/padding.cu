@@ -34,27 +34,30 @@ namespace tomocam::gpu {
     }
 
     /**
-        * Pad intput detector images with zeros in prevent aliasing.
-        * @param input The input 3D array to be padded.
-        * @param pad_factor The factor by which to pad the array. For example, a
-        * pad_factor of 2 will double the size of the array in each dimension.
-        * @param type The type of padding to apply (symmetric, left, or right).
-        * @return A new DeviceArray containing the padded data.
-        */
+     * Pad intput detector images with zeros in prevent aliasing.
+     * @param input The input 3D array to be padded.
+     * @param pad_factor The factor by which to pad the array. For example, a
+     * pad_factor of 2 will double the size of the array in each dimension.
+     * @param type The type of padding to apply (symmetric, left, or right).
+     * @return A new DeviceArray containing the padded data.
+     */
     template <typename T>
-    DeviceArray<T> pad2d(const DeviceArray<T> &input, float pad_factor, PadType type) {
+    DeviceArray<T> pad2d(const DeviceArray<T> &input, float pad_factor,
+                         PadType type) {
 
         dims_t dims = input.dims();
-        size_t pad_n2 = 2 * static_cast<size_t>(dims.n2 * (pad_factor - 1) / 2);
-        size_t pad_n3 = 2 * static_cast<size_t>(dims.n3 * (pad_factor - 1) / 2);
-        dims_t out_dims = {dims.n1, dims.n2 + pad_n2, dims.n3 + pad_n3};
+        size_t pad_n2 = static_cast<size_t>(dims.n2 * pad_factor);
+        if (pad_n2 % 2 == 0) { pad_n2 -= 1; }
+        size_t pad_n3 = static_cast<size_t>(dims.n3 * pad_factor);
+        if (pad_n3 % 2 == 0) { pad_n3 -= 1; }
+        dims_t out_dims = {dims.n1, pad_n2, pad_n3};
         int3 offset = {0, 0, 0};
         if (type == PadType::SYMMETRIC) {
-            offset.y = pad_n2 / 2;
-            offset.z = pad_n3 / 2;
+            offset.y = (pad_n2 - dims.n2) / 2;
+            offset.z = (pad_n3 - dims.n3) / 2;
         } else if (type == PadType::LEFT) {
-            offset.y = pad_n2;
-            offset.z = pad_n3;
+            offset.y = pad_n2 - dims.n2;
+            offset.z = pad_n3 - dims.n3;
         } else if (type == PadType::RIGHT) {
             // do nothing, offset is already 0
         }
@@ -97,7 +100,7 @@ namespace tomocam::gpu {
             offset.x /= 2;
             offset.y /= 2;
             offset.z /= 2;
-        } else if (type == PadType::RIGHT) {
+        } else if (type == PadType::LEFT) {
             offset.x = 0;
             offset.y = 0;
             offset.z = 0;
@@ -133,7 +136,8 @@ namespace tomocam::gpu {
                                         dims_t out_dims, dims_t offset);
 
     template <typename T>
-    DeviceArray<T> pad3d(const DeviceArray<T> &input, dims_t out_dims, PadType type) {
+    DeviceArray<T> pad3d(const DeviceArray<T> &input, dims_t out_dims,
+                         PadType type) {
         dims_t dims = input.dims();
         int3 offset = {0, 0, 0};
         if (type == PadType::SYMMETRIC) {
