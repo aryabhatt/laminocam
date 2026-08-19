@@ -36,10 +36,6 @@
 
 namespace tomocam::gpu {
 
-    // alias for (projections, angles, gamma) tuple
-    template <typename T>
-    using Dataset_t = std::tuple<Array<T>, std::vector<T>, T>;
-
     template <typename T>
     Array<T> MBIR(const std::vector<Dataset_t<T>> &datasets,
                   const ReconParams &params) {
@@ -64,9 +60,9 @@ namespace tomocam::gpu {
         //  find the maximum value across all datasets to normalize projections
         T scale = 0;
         size_t n_projs = 0;
-        size_t nrows = std::get<0>(datasets[0]).nrows();
-        size_t ncols = std::get<0>(datasets[0]).ncols();
-        for (const auto &[projs, angles, gamma] : datasets) {
+        size_t nrows = datasets[0].projs.nrows();
+        size_t ncols = datasets[0].projs.ncols();
+        for (const auto &[projs, angles, gamma, beta, shifts_ds] : datasets) {
             scale = std::max(scale, tomocam::array::max(projs));
             n_projs += angles.size();
         }
@@ -89,7 +85,7 @@ namespace tomocam::gpu {
         {
             Array<T> stacked_projs(proj_dims);
             size_t offset = 0;
-            for (const auto &[projs, angles, gamma_ref] : datasets) {
+            for (const auto &[projs, angles, gamma_ref, beta_ref, shifts_ds] : datasets) {
                 Array<T> y = projs / scale;
                 y = pad2d(y, padfac, PadType::SYMMETRIC);
                 if (y.nrows() != padded_nrows || y.ncols() != padded_ncols) {

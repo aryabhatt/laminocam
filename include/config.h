@@ -81,6 +81,43 @@ namespace tomocam {
         return angles;
     }
 
+    // Read per-projection shifts from a two-column text file (dx dy per line, pixels).
+    template <typename T>
+    inline std::vector<std::array<T, 2>> read_shifts_file(const std::string &filepath) {
+        std::ifstream fp(filepath);
+        if (!fp.is_open()) {
+            throw std::runtime_error(
+                std::format("Could not open shifts file: {}", filepath));
+        }
+        std::vector<std::array<T, 2>> shifts;
+        T dx, dy;
+        while (fp >> dx >> dy) { shifts.push_back({dx, dy}); }
+        if (shifts.empty()) {
+            throw std::runtime_error(
+                std::format("No shifts found in file: {}", filepath));
+        }
+        return shifts;
+    }
+
+    // parse aligment parameters from TOML
+    template <typename T>
+    inline std::vector<std::array<T, 6>> parse_alignment(const toml::table &align,
+                                                         const char *section) {
+        std::vector<std::array<T, 6>> rots;
+        auto *projs = align[section]["projections"].as_array();
+        if (!projs)
+            throw std::runtime_error(std::string("missing [[") + section +
+                                     ".projections]]");
+        for (auto &elem : *projs) {
+            auto *row = elem.as_table();
+            auto *rt = row->get("rotation_T")->as_array();
+            std::array<T, 6> r;
+            for (int i = 0; i < 6; ++i) r[i] = (*rt)[i].value<T>().value();
+            rots.push_back(r);
+        }
+        return rots;
+    }
+
     // Function to parse input datasets from TOML config
     template <typename T>
     [[nodiscard]] std::vector<Dataset_t<T>>
@@ -118,6 +155,42 @@ namespace tomocam {
             if (!gamma.has_value()) {
                 throw std::runtime_error("[[input]] 'gamma' field must be a number");
             }
+            // read beta (misalignment with y-axis) if provided,
+            T beta = (*input_table)["beta"].value_or<T>(0);
+            T beta_rad = beta * T(M_PI) / T(180);
+
+            // Build per-projection shifts vector.
+            // 'shifts' (path to a two-column file) takes priority over the legacy
+            // 'cor-offset' scalar, which is broadcast to all projections.
+            std::vector<std::array<T, 2>> per_proj_shifts;
+            if (input_table->contains("shifts")) {
+                auto shifts_path = (*input_table)["shifts"].value<std::string>();
+                if (!shifts_path.has_value())
+                    throw std::runtime_error(
+                        "[[input]] 'shifts' must be a string path");
+                auto resolved = std::filesystem::path(*shifts_path);
+                if (!std::filesystem::exists(resolved))
+                    throw std::runtime_error(
+                        std::format("Shifts file does not exist: {}", resolved.string()));
+                per_proj_shifts = read_shifts_file<T>(resolved.string());
+            } else if (input_table->contains("cor-offset")) {
+                auto offsets_array = (*input_table)["cor-offset"].as_array();
+                if (!offsets_array || offsets_array->size() != 2) {
+                    throw std::runtime_error(
+                        "[[input]] 'cor-offset' must be in form [dx, dy]");
+                }
+                std::array<T, 2> buf;
+                for (size_t i = 0; i < 2; ++i) {
+                    auto val = (*offsets_array)[i].value<T>();
+                    if (!val.has_value()) {
+                        throw std::runtime_error(
+                            "[[input]] 'cor-offset' must be an array of numbers");
+                    }
+                    buf[i] = *val;
+                }
+                // broadcast to all projections after we know N (filled below)
+                per_proj_shifts = {buf};  // sentinel: one element means broadcast
+            }
 
             // deg→rad conversion applied to any angles vector
             auto to_radians = [](std::vector<T> &a) {
@@ -141,64 +214,43 @@ namespace tomocam {
                 if (!std::filesystem::exists(*angles_path))
                     throw std::runtime_error(
                         std::format("Angles file does not exist: {}", *angles_path));
-                projs  = tomocam::tiff::read(*filename);
+                projs = tomocam::tiff::read(*filename);
                 angles = read_angles_file<T>(*angles_path);
             } else if (ext == ".h5" || ext == ".hdf5") {
                 auto angles_ds =
                     (*input_table)["angles"].value_or<std::string>("/coords/alpha");
-                projs      = tomocam::h5::read_images(*filename);
-                auto raw   = tomocam::h5::read_angles(*filename, angles_ds);
+                projs = tomocam::h5::read_images(*filename);
+                auto raw = tomocam::h5::read_angles(*filename, angles_ds);
                 angles.assign(raw.begin(), raw.end());
                 to_radians(angles);
             } else {
-                throw std::runtime_error(
-                    std::format("Unsupported file extension '{}': {}", ext, *filename));
+                throw std::runtime_error(std::format(
+                    "Unsupported file extension '{}': {}", ext, *filename));
             }
 
             projs = tomocam::mask_infs_nans(projs);
-            auto gamma_rad = *gamma * M_PI / T(180);
+            // alignlsq uses Rz(γ)=[[c,s],[−s,c]] (passive/CW);
+            // RotationTranspose uses standard CCW Rz. Negate γ to reconcile.
+            T gamma_rad = -(*gamma) * T(M_PI) / T(180);
+
+            // broadcast scalar cor-offset to all N projections if needed
+            if (per_proj_shifts.size() == 1) {
+                std::array<T, 2> scalar = per_proj_shifts[0];
+                per_proj_shifts.assign(angles.size(), scalar);
+            } else if (per_proj_shifts.empty()) {
+                per_proj_shifts.assign(angles.size(), std::array<T, 2>{T(0), T(0)});
+            } else if (per_proj_shifts.size() != angles.size()) {
+                throw std::runtime_error(std::format(
+                    "shifts file has {} entries but {} projections were loaded",
+                    per_proj_shifts.size(), angles.size()));
+            }
+
             datasets.push_back(
-                std::make_tuple(std::move(projs), std::move(angles), gamma_rad));
+                {std::move(projs), std::move(angles), gamma_rad, beta_rad,
+                 std::move(per_proj_shifts)});
         }
         return datasets;
     }
-
-    /***
-
-      enum class Regularizer { SPLIT_BREGMAN, UNCONSTRAINED };
-    // Reconstruction parameters
-    struct ReconParams {
-        Regularizer regularizer =
-            Regularizer::UNCONSTRAINED;               // Regularization method
-        std::array<size_t, 3> recon_dims = {0, 0, 0}; // Reconstruction dimensions
-        size_t maxIters = 50;                         // Maximum number of iterations
-        size_t innerIters = 3;     // Number of inner iterations for Split-Bregman
-        float lambda = 0.1f;       // Regularization weight (Split-Bregman)
-        float mu = 10.0f;          // Augmented Lagrangian parameter (Split-Bregman)
-        float tol = 1e-5f;         // Tolerance for convergence
-        float xtol = 1e-5f;        // Tolerance for solution change
-        float PAD_FACTOR = 1.4142; // sqrt(2) padding factor
-
-        void print(std::ostream &os) const {
-
-            std::string reg_str = (regularizer == Regularizer::SPLIT_BREGMAN)
-                                      ? "Split-Bregman"
-                                      : "Unconstrained";
-            os << "Reconstruction Parameters:\n";
-            os << "  max_outer_iters: " << maxIters << "\n";
-            os << std::format("  recon_dims: [{}, {}, {}]\n", recon_dims[0],
-                              recon_dims[1], recon_dims[2]);
-            os << "  tol: " << tol << "\n";
-            os << "  xtol: " << xtol << "\n";
-            os << "  regularizer: " << reg_str << "\n";
-            if (regularizer == Regularizer::SPLIT_BREGMAN) {
-                os << "    inner_iters: " << innerIters << "\n";
-                os << "    lambda: " << lambda << "\n";
-                os << "    mu: " << mu << "\n";
-            }
-        }
-    };
-    ****/
 
     inline ReconParams parse_recon_params(const toml::table &config) {
         ReconParams p;
@@ -329,7 +381,8 @@ namespace tomocam {
         outfile << "# angles = \"/path/to/angles.txt\"\n";
         outfile << "# gamma = 45\n";
         outfile << "\n";
-        outfile << "# HDF5 alternative (angles read from /coords/alpha inside the file):\n";
+        outfile << "# HDF5 alternative (angles read from /coords/alpha inside the "
+                   "file):\n";
         outfile << "# [[input]]\n";
         outfile << "# filename = \"/path/to/projections.h5\"\n";
         outfile << "# gamma = 0\n";

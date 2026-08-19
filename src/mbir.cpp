@@ -62,33 +62,51 @@ namespace tomocam {
          */
         size_t n_projs = 0;
         size_t n_datasets = datasets.size();
-        dims_t proj_dims = std::get<0>(datasets[0]).dims();
+        dims_t proj_dims = datasets[0].projs.dims();
         for (size_t j = 0; j < n_datasets; ++j) {
-            n_projs += std::get<1>(datasets[j]).size();
+            n_projs += datasets[j].angles.size();
         }
         proj_dims.n1 = n_projs;
         std::vector<T> theta;
         std::vector<T> gamma;
+        std::vector<T> beta;
+        std::vector<std::array<T, 2>> shifts;
         cpu::PolarGrid<T> pg;
         cpu::PointSpreadFunction<T> psf;
         Array<T> yT;
+
+        // print gamma, beta, and shift range for each dataset
+        for (size_t j = 0; j < n_datasets; ++j) {
+            const auto &sh = datasets[j].shifts;
+            auto [min_y, max_y] = std::minmax_element(
+                sh.begin(), sh.end(),
+                [](const auto &a, const auto &b) { return a[1] < b[1]; });
+            std::cout << std::format(
+                "Dataset {}: gamma = {:.4f}, beta = {:.4f}, "
+                "shift_ty in [{:.1f}, {:.1f}] px\n",
+                j, datasets[j].gamma, datasets[j].beta,
+                (*min_y)[1], (*max_y)[1]);
+        }
+
         {
 
             size_t offset = 0;
             Array<T> stacked_projs = Array<T>(proj_dims);
             for (size_t j = 0; j < n_datasets; ++j) {
-                auto &[proj, angles, gamma_ref] = datasets[j];
+                auto &[proj, angles, gamma_ref, beta_ref, shifts_ds] = datasets[j];
 
                 // stack projections into a single array
                 std::copy(proj.data(), proj.data() + proj.size(),
                           stacked_projs.data() + offset);
                 offset += proj.size();
 
-                // combine angles and gamma values into single vectors
+                // combine angles, gamma, and per-projection shifts
                 for (auto &angle : angles) { theta.push_back(angle); }
                 for (size_t i = 0; i < angles.size(); ++i) {
                     gamma.push_back(gamma_ref);
+                    beta.push_back(beta_ref);
                 }
+                shifts.insert(shifts.end(), shifts_ds.begin(), shifts_ds.end());
             }
 
             // normalize values to [0, 1] to avoid numerical issues
@@ -101,10 +119,12 @@ namespace tomocam {
             size_t ncols = stacked_projs.ncols();
 
             // build polar grid for system matrix
-            pg = cpu::PolarGrid<T>(theta, gamma, nrows, ncols);
+            pg = cpu::PolarGrid<T>(theta, gamma, beta, nrows, ncols);
 
             // compute backprojection from stacked projections
-            yT = backproj(stacked_projs, pg, out_dims);
+            std::cout << std::format(
+                "Computing backprojection of {} projections ...\n", n_projs);
+            yT = backproj(stacked_projs, pg, out_dims, shifts);
 
             // build a point-spread function (PSF) for the system matrix
             psf = cpu::PointSpreadFunction<T>(pg, out_dims);
@@ -112,7 +132,6 @@ namespace tomocam {
 
         // build system operator that sums over all datasets
         opt::Function<T> A = [&psf](const Array<T> &x) { return sysmat(x, psf); };
-        // opt::Function<T> A = [&pg](const Array<T> &x) { return sysmat(x, pg); };
 
         // initialize reconstruction with zeros
         auto x0 = Array<T>::zeros(out_dims);
