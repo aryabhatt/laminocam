@@ -28,6 +28,10 @@
 namespace tomocam::gpu {
 
     template <typename T>
+    void phase_shift2d(DeviceArray<cuda::std::complex<T>> &input,
+                       const std::vector<std::array<T, 2>> &shifts);
+
+    template <typename T>
     DeviceArray<T> roll(const DeviceArray<T> &input, int3 delta);
 
     template <typename T>
