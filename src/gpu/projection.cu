@@ -18,7 +18,10 @@
  *---------------------------------------------------------------------------------
  */
 
+#include <array>
 #include <cuda/std/complex>
+#include <thrust/device_vector.h>
+#include <vector>
 
 #include "dtypes.h"
 #include "polar_grid.h"
@@ -83,6 +86,9 @@ namespace tomocam::gpu {
         C = gpu::fft::fft2d(C);
         C = gpu::ifftshift2(C);
 
+        // zero out samples whose rotated frequency exceeds pi
+        array::cmul(C, pg.w);
+
         DeviceArray<complex<T>> F(recon_dims);
         nufft::nufft3d1(C, F, pg);
 
@@ -97,5 +103,45 @@ namespace tomocam::gpu {
     template DeviceArray<double> backward(const DeviceArray<double> &,
                                           const gpu::PolarGrid<double> &,
                                           const dims_t &);
+
+    // -------------------------------------------------------------------------
+    // backward with per-projection shifts (center-of-rotation correction)
+    // -------------------------------------------------------------------------
+
+    template <typename T>
+    DeviceArray<T> backward(const DeviceArray<T> &proj, const gpu::PolarGrid<T> &pg,
+                            const dims_t &recon_dims,
+                            const std::vector<std::array<T, 2>> &shifts) {
+        if (shifts.size() != proj.nslices()) {
+            throw std::invalid_argument(
+                "shifts size must match the number of slices in the projection");
+        }
+
+        T scale = static_cast<T>(proj.nrows() * proj.ncols());
+        auto C = array::to_complex(proj);
+
+        C = gpu::fftshift2(C);
+        C = gpu::fft::fft2d(C);
+        C = gpu::ifftshift2(C);
+
+        // zero out samples whose rotated frequency exceeds pi
+        array::cmul(C, pg.w);
+
+        // center-of-rotation correction: exp(-i*(qx*dx + qy*dy))
+        phase_shift2d(C, shifts);
+
+        DeviceArray<complex<T>> F(recon_dims);
+        nufft::nufft3d1(C, F, pg);
+
+        return array::to_real(F) / scale;
+    }
+
+    template DeviceArray<float> backward(const DeviceArray<float> &,
+                                         const gpu::PolarGrid<float> &,
+                                         const dims_t &,
+                                         const std::vector<std::array<float, 2>> &);
+    template DeviceArray<double>
+    backward(const DeviceArray<double> &, const gpu::PolarGrid<double> &,
+             const dims_t &, const std::vector<std::array<double, 2>> &);
 
 } // namespace tomocam::gpu
