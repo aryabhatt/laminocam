@@ -130,7 +130,9 @@ int main(int argc, char **argv) {
         }
     }
     if (projections.empty()) { projections.push_back({0.0f, "proj.tiff"}); }
+    auto proj_dims = volume.dims();
 
+    proj_dims.n1 = static_cast<size_t>(ang_n);
     auto pad = [pad_factor](size_t dim) {
         auto new_dim = static_cast<size_t>(dim * pad_factor);
         if (new_dim % 2 == 0) {
@@ -159,11 +161,15 @@ int main(int argc, char **argv) {
                                  projections.size(), gamma, filename);
 
         std::vector<float> gamma_vec(angles.size(), gamma * M_PI / 180.0f);
+        std::vector<float> beta_vec(angles.size(), 0.0f);
         std::vector<float> theta_vec;
         for (const auto &a : angles) { theta_vec.push_back(a * M_PI / 180.0f); }
-        auto pg = tomocam::cpu::PolarGrid(theta_vec, gamma_vec, volume.nrows(),
-                                          volume.ncols());
+
+        auto pg = tomocam::cpu::PolarGrid(theta_vec, gamma_vec, beta_vec,
+                                          volume.nrows(), volume.ncols());
         auto proj = tomocam::forward(volume, pg);
+
+        proj = tomocam::crop2d(proj, proj_dims, PadType::SYMMETRIC);
 
         std::string output_file = std::filesystem::path(output_path) / filename;
         tomocam::tiff::write(output_file, proj);
