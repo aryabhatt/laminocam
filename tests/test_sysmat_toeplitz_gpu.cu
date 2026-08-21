@@ -66,7 +66,8 @@ static bool test_gpu_sysmat(const dims_t &vol_dims, const std::vector<float> &th
                              gamma);
 
     std::vector<float> gamma_vec(theta.size(), gamma);
-    gpu::PolarGrid<float> pg(theta, gamma_vec, vol_dims.n2, vol_dims.n3);
+    std::vector<float> beta_vec(theta.size(), 0.f);
+    gpu::PolarGrid<float> pg(theta, gamma_vec, beta_vec, vol_dims.n2, vol_dims.n3);
     gpu::PointSpreadFunction<float> psf(pg, vol_dims);
 
     // Random volume on host, then upload

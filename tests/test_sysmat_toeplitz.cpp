@@ -53,7 +53,8 @@ static bool test_sysmat_agreement(const dims_t &vol_dims,
         vol_dims.n2, vol_dims.n3, theta.size());
 
     cpu::PolarGrid<double> pg(theta, std::vector<double>(theta.size(), gamma),
-                              vol_dims.n2, vol_dims.n3);
+                              std::vector<double>(theta.size(), 0.0), vol_dims.n2,
+                              vol_dims.n3);
     cpu::PointSpreadFunction<double> psf(pg, vol_dims);
 
     auto x = Array<double>::random(vol_dims);

@@ -191,8 +191,9 @@ int main() {
 
     // Build both grids from the same angle set
     std::vector<float> gamma(NTHETA, 0.f);
-    tomocam::cpu::PolarGrid<float> cpu_pg(theta, gamma, N, N);
-    tomocam::gpu::PolarGrid<float> gpu_pg(theta, gamma, N, N);
+    std::vector<float> beta(NTHETA, 0.f);
+    tomocam::cpu::PolarGrid<float> cpu_pg(theta, gamma, beta, N, N);
+    tomocam::gpu::PolarGrid<float> gpu_pg(theta, gamma, beta, N, N);
 
     // Random volume and random projections (same seed → reproducible)
     auto vol = Array<float>::random(vol_dims);
