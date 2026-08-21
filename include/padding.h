@@ -71,6 +71,41 @@ namespace tomocam {
     }
 
     template <typename T>
+    Array<T> crop2d(const Array<T> &arr, dims_t new_dims, PadType pad_type) {
+
+        auto crop_size = arr.dims() - new_dims;
+        if (new_dims.n1 != arr.nslices()) {
+            throw std::runtime_error("crop2d: new_dims.n1 must equal arr.nslices()");
+        }
+
+        if (crop_size.n2 == 0 && crop_size.n3 == 0) { return arr.clone(); }
+
+        Array<T> arr2(new_dims);
+
+        size_t d1, d2;
+        if (pad_type == PadType::LEFT) {
+            d1 = d2 = 0;
+        } else if (pad_type == PadType::RIGHT) {
+            d1 = crop_size.n2;
+            d2 = crop_size.n3;
+        } else {
+            d1 = crop_size.n2 / 2;
+            d2 = crop_size.n3 / 2;
+        }
+
+        for (size_t i = 0; i < new_dims.n1; i++) {
+            Slice<T> in = arr.slice(i);
+            Slice<T> out = arr2.slice(i);
+            for (size_t j = 0; j < new_dims.n2; j++) {
+                std::copy(in.ptr + (j + d1) * arr.ncols() + d2,
+                          in.ptr + (j + d1) * arr.ncols() + d2 + new_dims.n3,
+                          out.ptr + j * arr2.ncols());
+            }
+        }
+        return arr2;
+    }
+
+    template <typename T>
     Array<T> pad3d(const Array<T> &arr, dims_t dims, PadType pad_type) {
 
         Array<T> arr2 = Array<T>::zeros(dims);
@@ -88,11 +123,12 @@ namespace tomocam {
         const size_t in_rows = arr.nrows(), in_cols = arr.ncols();
         const size_t out_rows = arr2.nrows(), out_cols = arr2.ncols();
 
-        #pragma omp parallel for collapse(2)
+#pragma omp parallel for collapse(2)
         for (size_t i = 0; i < arr.nslices(); i++) {
             for (size_t j = 0; j < arr.nrows(); j++) {
                 const T *row_src = src + (i * in_rows + j) * in_cols;
-                T *row_dst = dst + ((i + d.n1) * out_rows + (j + d.n2)) * out_cols + d.n3;
+                T *row_dst =
+                    dst + ((i + d.n1) * out_rows + (j + d.n2)) * out_cols + d.n3;
                 std::copy(row_src, row_src + in_cols, row_dst);
             }
         }
@@ -118,10 +154,11 @@ namespace tomocam {
         const size_t in_rows = arr.nrows(), in_cols = arr.ncols();
         const size_t out_rows = arr2.nrows(), out_cols = arr2.ncols();
 
-        #pragma omp parallel for collapse(2)
+#pragma omp parallel for collapse(2)
         for (size_t i = 0; i < new_dims.n1; i++) {
             for (size_t j = 0; j < new_dims.n2; j++) {
-                const T *row_src = src + ((i + d.n1) * in_rows + (j + d.n2)) * in_cols + d.n3;
+                const T *row_src =
+                    src + ((i + d.n1) * in_rows + (j + d.n2)) * in_cols + d.n3;
                 T *row_dst = dst + (i * out_rows + j) * out_cols;
                 std::copy(row_src, row_src + new_dims.n3, row_dst);
             }
@@ -139,11 +176,12 @@ namespace tomocam {
         const size_t in_rows = arr.nrows(), in_cols = arr.ncols();
         const size_t out_rows = arr2.nrows(), out_cols = arr2.ncols();
 
-        #pragma omp parallel for collapse(2)
+#pragma omp parallel for collapse(2)
         for (size_t i = 0; i < new_dims.n1; i++) {
             for (size_t j = 0; j < new_dims.n2; j++) {
                 const T *row_src =
-                    src + ((i + offset.n1) * in_rows + (j + offset.n2)) * in_cols + offset.n3;
+                    src + ((i + offset.n1) * in_rows + (j + offset.n2)) * in_cols +
+                    offset.n3;
                 T *row_dst = dst + (i * out_rows + j) * out_cols;
                 std::copy(row_src, row_src + new_dims.n3, row_dst);
             }
