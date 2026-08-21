@@ -21,6 +21,9 @@
 #ifndef TOMOCAM_GPU_PROJECTION_H
 #define TOMOCAM_GPU_PROJECTION_H
 
+#include <array>
+#include <vector>
+
 #include "dtypes.h"
 #include "gpu/device_array.h"
 #include "gpu/polar_grid.h"
@@ -48,18 +51,22 @@ namespace tomocam::gpu {
     DeviceArray<T> backward(const DeviceArray<T> &proj, const PolarGrid<T> &pg,
                             const dims_t &recon_dims);
 
-    /**
-     * @brief GPU adjoint projection (no filter): projections -> volume.
-     *        Inline alias for backward(), matching the CPU backproj() interface.
-     * @param proj        Device array of projections.
-     * @param pg          GPU polar grid.
-     * @param recon_dims  Dimensions of the output volume.
-     * @return            Device array with shape recon_dims.
-     */
+    template <typename T>
+    DeviceArray<T> backward(const DeviceArray<T> &proj, const PolarGrid<T> &pg,
+                            const dims_t &recon_dims,
+                            const std::vector<std::array<T, 2>> &shifts);
+
     template <typename T>
     inline DeviceArray<T> backproj(const DeviceArray<T> &proj, const PolarGrid<T> &pg,
                                    const dims_t &recon_dims) {
         return backward(proj, pg, recon_dims);
+    }
+
+    template <typename T>
+    inline DeviceArray<T> backproj(const DeviceArray<T> &proj, const PolarGrid<T> &pg,
+                                   const dims_t &recon_dims,
+                                   const std::vector<std::array<T, 2>> &shifts) {
+        return backward(proj, pg, recon_dims, shifts);
     }
 
     /**
