@@ -42,6 +42,14 @@ namespace tomocam::gpu {
         namespace detail {
 
             template <typename T>
+            struct CmulRFn {
+                __host__ __device__ cuda::std::complex<T>
+                operator()(cuda::std::complex<T> x, T y) const {
+                    return x * cuda::std::complex<T>(y, T(0));
+                }
+            };
+
+            template <typename T>
             struct ToComplexFn {
                 __host__ __device__ cuda::std::complex<T> operator()(T x) const {
                     return {x, T(0)};
@@ -142,6 +150,12 @@ namespace tomocam::gpu {
                               detail::XpayFn<T>(beta));
         }
 
+        template <Real_t T>
+        void cmul(DeviceArray<cuda::std::complex<T>> &x, const DeviceArray<T> &y) {
+            thrust::transform(x.begin(), x.end(), y.begin(), x.begin(),
+                              detail::CmulRFn<T>{});
+        }
+
         // to_complex: DeviceArray<T> -> DeviceArray<complex<T>>
         template <Real_t T>
         DeviceArray<cuda::std::complex<T>> to_complex(const DeviceArray<T> &a) {
@@ -231,14 +245,15 @@ namespace tomocam::gpu::array {
 #undef INST_GENERIC
 
     // Real_t-constrained functions — float and double only
-#define INST_REAL(T)                                                                \
-    template DeviceArray<cuda::std::complex<T>> to_complex(const DeviceArray<T> &); \
-    template DeviceArray<T> to_real(const DeviceArray<cuda::std::complex<T>> &);    \
-    template DeviceArray<T> abs(const DeviceArray<T> &);                            \
-    template T max(const DeviceArray<T> &);                                         \
-    template T min(const DeviceArray<T> &);                                         \
-    template T norm2(const DeviceArray<T> &);                                       \
-    template T norm1(const DeviceArray<T> &);                                       \
+#define INST_REAL(T)                                                                        \
+    template void cmul(DeviceArray<cuda::std::complex<T>> &, const DeviceArray<T> &);       \
+    template DeviceArray<cuda::std::complex<T>> to_complex(const DeviceArray<T> &);         \
+    template DeviceArray<T> to_real(const DeviceArray<cuda::std::complex<T>> &);            \
+    template DeviceArray<T> abs(const DeviceArray<T> &);                                    \
+    template T max(const DeviceArray<T> &);                                                 \
+    template T min(const DeviceArray<T> &);                                                 \
+    template T norm2(const DeviceArray<T> &);                                               \
+    template T norm1(const DeviceArray<T> &);                                               \
     template T dot(const DeviceArray<T> &, const DeviceArray<T> &);
 
     INST_REAL(float)
