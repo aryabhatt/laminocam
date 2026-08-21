@@ -21,11 +21,14 @@
 #ifndef PROJECTION_H
 #define PROJECTION_H
 
+#include <array>
+#include <cmath>
 #include <string>
 
 #include "array.h"
 #include "dtypes.h"
 #include "polar_grid.h"
+#include "rotation.h"
 #include "toeplitz.h"
 
 namespace tomocam {
@@ -36,6 +39,11 @@ namespace tomocam {
     template <typename T>
     Array<T> backproj(const Array<T> &projections, const cpu::PolarGrid<T> &grid,
                       const dims_t &dims);
+
+    template <typename T>
+    Array<T> backproj(const Array<T> &projections, const cpu::PolarGrid<T> &grid,
+                      const dims_t &dims,
+                      const std::vector<std::array<T, 2>> &shifts);
 
     template <typename T>
     Array<T> sysmat(const Array<T> &x, const cpu::PolarGrid<T> &grid);
