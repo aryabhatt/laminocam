@@ -20,12 +20,14 @@
 #ifndef CPU_POLAR_GRID_H
 #define CPU_POLAR_GRID_H
 
-#include "array.h"
-#include "array_ops.h"
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
+
+#include "array.h"
+#include "array_ops.h"
+#include "rotation.h"
 
 namespace tomocam::cpu {
 
@@ -48,12 +50,13 @@ namespace tomocam::cpu {
 
         // constructor
         PolarGrid(const std::vector<T> &theta, const std::vector<T> &gamma,
-                  size_t nrows, size_t ncols) {
+                  const std::vector<T> &beta, size_t nrows, size_t ncols) {
 
             dims_t dims = dims_t{theta.size(), nrows, ncols};
             x = Array<T>(dims);
             y = Array<T>(dims);
             z = Array<T>(dims);
+            w = Array<T>(dims);
             npts = dims.size();
 
             // compute grid points
@@ -63,28 +66,33 @@ namespace tomocam::cpu {
 #pragma omp parallel for collapse(3)
             for (size_t i = 0; i < dims.n1; ++i) {
 
-                // precompute coses and sines
-                T cos_theta = std::cos(theta[i]);
-                T sin_theta = std::sin(theta[i]);
-                T cos_gamma = std::cos(gamma[i]);
-                T sin_gamma = std::sin(gamma[i]);
+                // compute rotation matrix for each angle
+                auto R = RotationTranspose(theta[i], gamma[i], beta[i]);
 
                 for (size_t j = 0; j < dims.n2; ++j) {
                     for (size_t k = 0; k < dims.n3; ++k) {
 
                         T qX = (k + 0.5) * dX - M_PI;
                         T qY = (j + 0.5) * dY - M_PI;
+                        auto q_rot = matvec(R, {qX, qY, 0.0});
 
-                        x[{i, j, k}] = qX * cos_gamma - qY * sin_gamma * cos_theta;
-                        y[{i, j, k}] = qX * sin_gamma + qY * cos_gamma * cos_theta;
-                        z[{i, j, k}] = qY * sin_theta;
+                        // non-uniform grid points
+                        x[{i, j, k}] = q_rot[0];
+                        y[{i, j, k}] = q_rot[1];
+                        z[{i, j, k}] = q_rot[2];
+
+                        // set weight to 0 if the point is outside the [-M_PI, M_PI]
+                        if (std::abs(q_rot[0]) > M_PI || std::abs(q_rot[1]) > M_PI ||
+                            std::abs(q_rot[2]) > M_PI) {
+                            w[{i, j, k}] = (T)0;
+                        } else {
+                            w[{i, j, k}] = (T)1;
+                        }
                     }
                 }
             }
-            w = Array<T>::ones(dims);
         }
     };
-
 } // namespace tomocam::cpu
 
 #endif // CPU_POLAR_GRID_H
