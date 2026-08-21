@@ -68,9 +68,9 @@ namespace tomocam::opt {
             // calculate and print the residual and solution change
             auto res = array::norm2(r) / (y_norm + T(1e-8));
             auto dx = array::norm2(step) / (array::norm2(x) + T(1e-8));
-            std::cout << std::format("\t CG Iter: {}, residual: {}, dx: {:.6e}\n",
-                                     iter, res, dx);
-            if (std::sqrt(res) < tol) { break; }
+            std::cout << std::format(
+                "\t CG Iter: {}, residual: {:.5e}, dx: {:.5e}\n", iter, res, dx);
+            if (res < tol) { break; }
             if (dx < xtol) { break; }
         }
         return x;
