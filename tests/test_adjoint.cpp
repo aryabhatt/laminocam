@@ -55,7 +55,8 @@ static bool test_adjoint(const dims_t &vol_dims, const std::vector<double> &thet
     std::cout << "Adjoint       <Rx,y> = <x,R^T y>           ... ";
 
     cpu::PolarGrid<double> pg(theta, std::vector<double>(theta.size(), gamma),
-                              vol_dims.n2, vol_dims.n3);
+                              std::vector<double>(theta.size(), 0.0), vol_dims.n2,
+                              vol_dims.n3);
     auto x = Array<double>::random(vol_dims);
     auto y = Array<double>::random(pg.dims());
     auto Rx = forward(x, pg);
@@ -78,7 +79,8 @@ static bool test_quadratic(const dims_t &vol_dims, const std::vector<double> &th
     std::cout << "Quadratic id  x^T Ax - 2<x,R^T y> + ||y||^2 = ||Rx-y||^2 ... ";
 
     cpu::PolarGrid<double> pg(theta, std::vector<double>(theta.size(), gamma),
-                              vol_dims.n2, vol_dims.n3);
+                              std::vector<double>(theta.size(), 0.0), vol_dims.n2,
+                              vol_dims.n3);
     auto x = Array<double>::random(vol_dims);
     auto y = Array<double>::random(pg.dims());
     auto Rx = forward(x, pg);
@@ -103,7 +105,8 @@ static bool test_sysmat_symmetry(const dims_t &vol_dims,
     std::cout << "Sysmat sym    <u,Ax> = <x,Au>               ... ";
 
     cpu::PolarGrid<double> pg(theta, std::vector<double>(theta.size(), gamma),
-                              vol_dims.n2, vol_dims.n3);
+                              std::vector<double>(theta.size(), 0.0), vol_dims.n2,
+                              vol_dims.n3);
     auto x = Array<double>::random(vol_dims);
     auto u = Array<double>::random(vol_dims);
     auto Ax = sysmat(x, pg);
@@ -125,7 +128,8 @@ static bool test_sysmat_psd(const dims_t &vol_dims, const std::vector<double> &t
     std::cout << "Sysmat PSD    <x,Ax> >= 0                   ... ";
 
     cpu::PolarGrid<double> pg(theta, std::vector<double>(theta.size(), gamma),
-                              vol_dims.n2, vol_dims.n3);
+                              std::vector<double>(theta.size(), 0.0), vol_dims.n2,
+                              vol_dims.n3);
     auto x = Array<double>::random(vol_dims);
     auto Ax = sysmat(x, pg);
 
