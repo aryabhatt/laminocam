@@ -32,6 +32,10 @@ namespace tomocam::gpu::array {
     template <typename T>
     concept Real_t = std::is_same_v<T, float> || std::is_same_v<T, double>;
 
+    /// multiply complex array by real array: a = a * b
+    template <Real_t T>
+    void cmul(DeviceArray<cuda::std::complex<T>> &a, const DeviceArray<T> &b);
+
     /// axpy: x = alpha * x + y
     template <typename T>
     void axpy(DeviceArray<T> &x, T alpha, const DeviceArray<T> &y);
