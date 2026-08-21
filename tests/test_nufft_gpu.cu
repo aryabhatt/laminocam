@@ -70,10 +70,11 @@ bool test_nufft3d1_cpu_vs_gpu(size_t nangles, size_t nrows, size_t ncols, size_t
     for (size_t i = 0; i < nangles; ++i)
         theta[i] = M_PI * static_cast<double>(i) / static_cast<double>(nangles);
     std::vector<double> gamma(nangles, 0.0);
+    std::vector<double> beta(nangles, 0.0);
 
     // CPU and GPU polar grids from identical angles
-    cpu::PolarGrid<double> cpu_pg(theta, gamma, nrows, ncols);
-    gpu::PolarGrid<double> gpu_pg(theta, gamma, nrows, ncols);
+    cpu::PolarGrid<double> cpu_pg(theta, gamma, beta, nrows, ncols);
+    gpu::PolarGrid<double> gpu_pg(theta, gamma, beta, nrows, ncols);
 
     // Random real input → complex source values
     dims_t grid_dims{nangles, nrows, ncols};
@@ -127,9 +128,10 @@ bool test_nufft3d2_cpu_vs_gpu(size_t nangles, size_t nrows, size_t ncols, size_t
     for (size_t i = 0; i < nangles; ++i)
         theta[i] = M_PI * static_cast<double>(i) / static_cast<double>(nangles);
     std::vector<double> gamma(nangles, 0.0);
+    std::vector<double> beta(nangles, 0.0);
 
-    cpu::PolarGrid<double> cpu_pg(theta, gamma, nrows, ncols);
-    gpu::PolarGrid<double> gpu_pg(theta, gamma, nrows, ncols);
+    cpu::PolarGrid<double> cpu_pg(theta, gamma, beta, nrows, ncols);
+    gpu::PolarGrid<double> gpu_pg(theta, gamma, beta, nrows, ncols);
 
     // Random complex uniform-grid input (the Fourier volume)
     dims_t vol_dims{nz, ny, nx};
