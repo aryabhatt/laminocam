@@ -44,6 +44,7 @@ namespace tomocam::gpu {
         DeviceArray<T> x;
         DeviceArray<T> y;
         DeviceArray<T> z;
+        DeviceArray<T> w;
 
         /// Returns dimensions (nangles, nrows, ncols) of the coordinate arrays.
         [[nodiscard]] dims_t dims() const { return x.dims(); }
@@ -54,11 +55,12 @@ namespace tomocam::gpu {
         /// Constructs the polar grid on the GPU.
         ///
         /// @param theta  Host-side vector of projection angles (radians)
-        /// @param gamma  Out-of-plane tilt angle (radians)
+        /// @param gamma  Per-projection in-plane tilt angles (radians)
+        /// @param beta   Per-projection out-of-plane tilt angles (radians)
         /// @param nrows  Number of radial samples
         /// @param ncols  Number of axial samples
         PolarGrid(const std::vector<T> &theta, const std::vector<T> &gamma,
-                  size_t nrows, size_t ncols);
+                  const std::vector<T> &beta, size_t nrows, size_t ncols);
     };
 } // namespace tomocam::gpu
 
