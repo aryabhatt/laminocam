@@ -80,6 +80,8 @@ namespace tomocam::gpu {
         // combine datasets and build stacked projections on CPU
         std::vector<T> theta;
         std::vector<T> gamma;
+        std::vector<T> beta;
+        std::vector<std::array<T, 2>> shifts;
         DeviceArray<T> yT;
         PointSpreadFunction<T> psf;
         {
@@ -100,15 +102,17 @@ namespace tomocam::gpu {
                 theta.insert(theta.end(), angles.begin(), angles.end());
                 for (size_t i = 0; i < angles.size(); ++i) {
                     gamma.push_back(gamma_ref);
+                    beta.push_back(beta_ref);
                 }
+                shifts.insert(shifts.end(), shifts_ds.begin(), shifts_ds.end());
             }
 
             // try GPU NUFFT first; fall back to CPU if device memory is insufficient
             try {
                 auto gpu_grid =
-                    PolarGrid<T>(theta, gamma, padded_nrows, padded_ncols);
+                    PolarGrid<T>(theta, gamma, beta, padded_nrows, padded_ncols);
                 DeviceArray<T> d_p(stacked_projs);
-                yT = backproj(d_p, gpu_grid, recon_dims);
+                yT = backproj(d_p, gpu_grid, recon_dims, shifts);
                 psf = PointSpreadFunction<T>(gpu_grid, recon_dims);
             } catch (const std::exception &e) {
                 std::cerr << std::format(
@@ -116,9 +120,9 @@ namespace tomocam::gpu {
                     e.what());
                 cudaGetLastError(); // reset any sticky CUDA error state
                 auto cpu_grid = tomocam::cpu::PolarGrid<T>(
-                    theta, gamma, padded_nrows, padded_ncols);
+                    theta, gamma, beta, padded_nrows, padded_ncols);
                 yT = DeviceArray<T>(
-                    tomocam::backproj(stacked_projs, cpu_grid, recon_dims));
+                    tomocam::backproj(stacked_projs, cpu_grid, recon_dims, shifts));
                 auto cpu_psf =
                     tomocam::cpu::PointSpreadFunction<T>(cpu_grid, recon_dims);
                 psf = PointSpreadFunction<T>(cpu_psf.dims(), cpu_psf.kernel_hat());
