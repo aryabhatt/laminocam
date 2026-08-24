@@ -97,7 +97,7 @@ namespace tomocam::gpu {
             offset.x /= 2;
             offset.y /= 2;
             offset.z /= 2;
-        } else if (type == PadType::RIGHT) {
+        } else if (type == PadType::LEFT) {
             offset.x = 0;
             offset.y = 0;
             offset.z = 0;
