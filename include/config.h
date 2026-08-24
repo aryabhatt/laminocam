@@ -136,11 +136,10 @@ namespace tomocam {
                 throw std::runtime_error("Invalid [[input]] entry");
             }
 
-            //  check for required fields: filename, gamma
-            if (!input_table->contains("filename") ||
-                !input_table->contains("gamma")) {
+            //  check for required fields: filename
+            if (!input_table->contains("filename")) {
                 throw std::runtime_error(
-                    "[[input]] entry must have 'filename' and 'gamma' fields");
+                    "[[input]] entry must have a 'filename' field");
             }
             auto filename = (*input_table)["filename"].value<std::string>();
             if (!filename.has_value()) {
@@ -151,13 +150,9 @@ namespace tomocam {
                 throw std::runtime_error(
                     std::format("Projection file does not exist: {}", *filename));
             }
-            auto gamma = (*input_table)["gamma"].value<T>();
-            if (!gamma.has_value()) {
-                throw std::runtime_error("[[input]] 'gamma' field must be a number");
-            }
-            // read beta (misalignment with y-axis) if provided,
-            T beta = (*input_table)["beta"].value_or<T>(0);
-            T beta_rad = beta * T(M_PI) / T(180);
+            // gamma and beta default to 0; overwritten by alignment block if present
+            T gamma_rad = -(*input_table)["gamma"].value_or<T>(0) * T(M_PI) / T(180);
+            T beta_rad  =  (*input_table)["beta"].value_or<T>(0)  * T(M_PI) / T(180);
 
             // Build per-projection shifts vector.
             // 'shifts' (path to a two-column file) takes priority over the legacy
@@ -230,9 +225,6 @@ namespace tomocam {
 
             projs = tomocam::mask_infs_nans(projs);
             // alignlsq uses Rz(γ)=[[c,s],[−s,c]] (passive/CW);
-            // RotationTranspose uses standard CCW Rz. Negate γ to reconcile.
-            T gamma_rad = -(*gamma) * T(M_PI) / T(180);
-
             // broadcast scalar cor-offset to all N projections if needed
             if (per_proj_shifts.size() == 1) {
                 std::array<T, 2> scalar = per_proj_shifts[0];
@@ -243,6 +235,52 @@ namespace tomocam {
                 throw std::runtime_error(std::format(
                     "shifts file has {} entries but {} projections were loaded",
                     per_proj_shifts.size(), angles.size()));
+            }
+
+            // Override angles and shifts from an alignment TOML if provided.
+            if (input_table->contains("alignment")) {
+                auto align_path = (*input_table)["alignment"].value<std::string>();
+                if (!align_path.has_value())
+                    throw std::runtime_error(
+                        "[[input]] 'alignment' must be a string path");
+                if (!std::filesystem::exists(*align_path))
+                    throw std::runtime_error(std::format(
+                        "Alignment file does not exist: {}", *align_path));
+                auto align_tbl = read_toml_file(*align_path);
+
+                // Override gamma and beta from alignment TOML
+                if (auto gv = align_tbl["gamma_deg"].value<T>())
+                    gamma_rad = -(*gv) * T(M_PI) / T(180);
+                if (auto bv = align_tbl["beta_deg"].value<T>())
+                    beta_rad = (*bv) * T(M_PI) / T(180);
+
+                auto *ang_arr = align_tbl["corrected_angles_deg"].as_array();
+                if (!ang_arr)
+                    throw std::runtime_error(
+                        "Alignment TOML missing 'corrected_angles_deg'");
+                angles.clear();
+                for (auto &elem : *ang_arr)
+                    angles.push_back(elem.value<T>().value() * T(M_PI) / T(180));
+
+                auto *spx = align_tbl["shifts_px"].as_array();
+                if (spx) {
+                    per_proj_shifts.clear();
+                    for (auto &elem : *spx) {
+                        auto *pair = elem.as_array();
+                        if (!pair || pair->size() < 2)
+                            throw std::runtime_error(
+                                "Alignment TOML 'shifts_px' entries must be [dx, dy] pairs");
+                        T dx = (*pair)[0].value<T>().value();
+                        T dy = (*pair)[1].value<T>().value();
+                        per_proj_shifts.push_back({dx, dy});
+                    }
+                }
+
+                if (per_proj_shifts.size() != angles.size())
+                    throw std::runtime_error(std::format(
+                        "Alignment TOML: shifts_px has {} entries but "
+                        "corrected_angles_deg has {}",
+                        per_proj_shifts.size(), angles.size()));
             }
 
             datasets.push_back(
