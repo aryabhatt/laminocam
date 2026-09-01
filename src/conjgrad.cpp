@@ -33,17 +33,14 @@
 namespace tomocam::opt {
     template <typename T>
     Array<T> cgsolver(const Function<T> &A, const Array<T> &yT, const Array<T> &x0,
-                      size_t max_iter, T tol, T xtol) {
+                      size_t max_iter, T tol, T xtol, IPrecond<T> *P) {
 
-        // initialize
         auto x = x0.clone();
         auto r = yT - A(x);
         auto y_norm = array::norm2(yT);
 
-        // no-preconditioner so far
-        auto precond_apply = [](const Array<T> &r) { return r.clone(); };
-
-        auto z = precond_apply(r);
+        auto z = r.clone();
+        if (P) P->apply(r, z);
         auto p = z.clone();
         auto rs_old = array::dot(z, r);
 
@@ -60,7 +57,8 @@ namespace tomocam::opt {
             x += step;
             r -= Ap * alpha;
 
-            z = precond_apply(r);
+            z = r.clone();
+            if (P) P->apply(r, z);
             auto rs_new = array::dot(z, r);
             p = z + (p * (rs_new / rs_old));
             rs_old = rs_new;
@@ -76,13 +74,12 @@ namespace tomocam::opt {
         return x;
     }
 
-    // template instantiations
     template Array<float> cgsolver<float>(const Function<float> &,
                                           const Array<float> &, const Array<float> &,
-                                          size_t, float, float);
+                                          size_t, float, float, IPrecond<float> *);
     template Array<double> cgsolver<double>(const Function<double> &,
                                             const Array<double> &,
                                             const Array<double> &, size_t, double,
-                                            double);
+                                            double, IPrecond<double> *);
 
 } // namespace tomocam::opt

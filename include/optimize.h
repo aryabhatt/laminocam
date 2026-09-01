@@ -27,6 +27,9 @@
 #include "array.h"
 
 namespace tomocam::opt {
+    // forward declaration — full definition in precond.h
+    template <typename T>
+    class IPrecond;
 
     template <typename T>
     using Function = std::function<Array<T>(const Array<T> &)>;
@@ -88,7 +91,8 @@ namespace tomocam::opt {
      */
     template <typename T>
     Array<T> cgsolver(const Function<T> &A, const Array<T> &y, const Array<T> &x,
-                      size_t max_iter, T tol, T xtol);
+                      size_t max_iter, T tol, T xtol,
+                      IPrecond<T> *P = nullptr);
 
 } // namespace tomocam::opt
 
