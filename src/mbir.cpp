@@ -28,6 +28,7 @@
 #include "optimize.h"
 #include "padding.h"
 #include "polar_grid.h"
+#include "precond.h"
 #include "tomocam.h"
 
 namespace tomocam {
@@ -137,13 +138,32 @@ namespace tomocam {
         auto x0 = Array<T>::zeros(out_dims);
         Array<T> recon;
 
+        // build preconditioner (once, before the solver loop)
+        std::unique_ptr<opt::IPrecond<T>> precond_owner;
+        opt::IPrecond<T> *P = nullptr;
+        switch (params.precond) {
+            case PrecondType::TOEPLITZ:
+                std::cout << "Building Toeplitz spectral preconditioner ...\n";
+                precond_owner = std::make_unique<opt::ToeplitzPrecond<T>>(
+                    psf, out_dims, static_cast<T>(params.precond_reg));
+                P = precond_owner.get();
+                break;
+            case PrecondType::DENSITY:
+                std::cout << "Building density-compensation preconditioner ...\n";
+                precond_owner = std::make_unique<opt::DensityComp<T>>(pg, out_dims);
+                P = precond_owner.get();
+                break;
+            default:
+                break;
+        }
+
         // run optimization
         switch (params.regularizer) {
             case Regularizer::UNCONSTRAINED: {
                 std::cout << "Starting unconstrained iterative reconstruction with "
                              "CG ...\n";
                 recon = opt::cgsolver<T>(A, yT, x0, params.maxIters, params.tol,
-                                         params.xtol);
+                                         params.xtol, P);
                 break;
             }
             case Regularizer::SPLIT_BREGMAN: {

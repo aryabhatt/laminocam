@@ -353,6 +353,17 @@ namespace tomocam {
                 }
             }
         }
+        {
+            auto pre_str = (*recon)["precond"].value_or<std::string>("identity");
+            if (pre_str == "toeplitz") {
+                p.precond = PrecondType::TOEPLITZ;
+            } else if (pre_str == "density") {
+                p.precond = PrecondType::DENSITY;
+            } else {
+                p.precond = PrecondType::IDENTITY;
+            }
+            p.precond_reg = (*recon)["precond_reg"].value_or<float>(1e-2f);
+        }
         return p;
     };
 

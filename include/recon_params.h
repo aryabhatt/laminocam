@@ -41,9 +41,12 @@ namespace tomocam {
     };
 
     enum class Regularizer { SPLIT_BREGMAN, UNCONSTRAINED };
+    enum class PrecondType { IDENTITY, DENSITY, TOEPLITZ };
 
     struct ReconParams {
         Regularizer regularizer = Regularizer::UNCONSTRAINED;
+        PrecondType precond = PrecondType::IDENTITY;
+        float precond_reg = 1e-2f;
         std::array<size_t, 3> recon_dims = {0, 0, 0};
         size_t maxIters = 100;
         size_t innerIters = 1;
@@ -63,7 +66,11 @@ namespace tomocam {
                               recon_dims[1], recon_dims[2]);
             os << "  tol: " << tol << "\n";
             os << "  xtol: " << xtol << "\n";
+            std::string pre_str = (precond == PrecondType::TOEPLITZ)  ? "toeplitz"
+                                : (precond == PrecondType::DENSITY)   ? "density"
+                                                                      : "identity";
             os << "  regularizer: " << reg_str << "\n";
+            os << "  preconditioner: " << pre_str << "\n";
             if (regularizer == Regularizer::SPLIT_BREGMAN) {
                 os << "    inner_iters: " << innerIters << "\n";
                 os << "    lambda: " << lambda << "\n";
