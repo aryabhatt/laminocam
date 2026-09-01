@@ -66,8 +66,8 @@ namespace tomocam::cpu {
                      next_fast_dim(2 * recon_dims.n3 - 1)};
             dims_t fft_dims = {dims_.n1, dims_.n2, dims_.n3 / 2 + 1};
 
-            // unit weights at non-uniform grid points, |q| <= pi
-            auto ones = array::to_complex<T>(grid.w);
+            // unit weights at all non-uniform grid points
+            auto ones = Array<complex_t>::ones(grid.dims());
 
             // allocate output array for NUFFT
             Array<complex_t> nufft_out(dims_);

@@ -30,59 +30,64 @@
 
 namespace tomocam::opt {
     template <typename T>
-    class RampPreconditioner {
+    using complex_t = std::complex<T>;
+
+    template <typename T>
+    class DensityComp {
       private:
-        Array<T> filter_;
+        Array<T> w_;
 
       public:
-        RampPreconditioner(dims_t dims) {
+        DensityComp(const PolarGrid<T> &grid, dims_t recon_dims, size_t n_iters = 10,
+                    tol = 1e-6) {
+            size_t M = grid.npts;
+            dims_t dims{1, 1, M};
+            auto w = array::ones<complex_t<T>>(dims);
+            auto u = array::zeros<complex_t<T>>(recon_dims);
+            w_(recon_dims);
 
-            dims_t filter_dims = {1, dims.n2, dims.n3 / 2 + 1};
-            filter_ = Array<T>(filter_dims);
-
-            // Create 1-d ramp filter in x-direction
-            int n3 = static_cast<int>(dims.n3);
-            std::vector<T> xfreq(dims.n3 / 2 + 1, 0);
-            for (int i = 0; i < n3 / 2 + 1; ++i) { xfreq[i] = (T)i / (T)n3; }
-
-            // Create 1-d ramp filter in y-direction
-            int n2 = static_cast<int>(dims.n2);
-            std::vector<T> yfreq(dims.n2, 0);
-            for (int i = 0; i < n2; ++i) {
-                yfreq[i] = (i <= n2 / 2) ? (T)i / (T)n2 : (T)(i - n2) / (T)n2;
+            for (size_t i = 0; i < n_iters; i++) {
+                nufft::nufft3d1(w, u, grid);
+                nufft::nufft3d2(w, u, grid);
+                auto d = array::max(array::abs(u), 1.0e-12);
+                w = array::div(u, d);
             }
-
-            // create a 2D ramp filter by outer addition
-            for (size_t j = 0; j < dims.n2; ++j) {
-                for (size_t i = 0; i < dims.n3 / 2 + 1; ++i) {
-                    auto f = std::sqrt(xfreq[i] * xfreq[i] + yfreq[j] * yfreq[j]);
-                    filter_[{0, j, i}] = f;
-                }
-            }
-#ifdef DEBUG
-            for (auto f : filter_) {
-                if (std::isnan(f) || std::isinf(f)) {
-                    throw std::runtime_error(
-                        "Error: Ramp filter contains NaN/Inf values.\n");
-                }
-            }
-#endif
+            nufft::nufft3d1(w, u, grid);
+            auto d = array::real(u);
+            auto floor = 1.0e-03 * array::max(d);
+            std::transform(d.begin(), d.end(), w_.begin(),
+                           [floor](T x) { return std::max(x, floor); });
         }
 
-        Array<T> apply(const Array<T> &input) const {
+        void apply(Array<T> &a) const {
+            std::transform(std::execution::par_unseq, a.begin(), a.end(), w_.begin(),
+                           a.begin(), [](T x, T y) { return x / y; });
+        }
+    };
 
-            // Apply the ramp filter in frequency domain
-            auto dims = input.dims();
-            auto scale = 1.0 / (dims.n2 * dims.n3);
-            auto fft_input = fft::fft2_r2c(input);
-            for (size_t i = 0; i < dims.n1; ++i) {
-                auto slice = fft_input.slice(i);
-                std::transform(std::execution::par_unseq, slice.begin(), slice.end(),
-                               filter_.begin(), slice.begin(),
-                               std::multiplies<std::complex<T>>());
-            }
-            auto filtered = fft::fft2_c2r(fft_input, dims);
-            return filtered * scale;
+    template <typename T>
+    class ToeplitzPrecond {
+      private:
+        Array<T> w_;
+
+      public:
+        ToeplitzPrecond(const PolarGrid<T> &grid, dims_t recon_dims) {
+            size_t M = grid.npts;
+            dims_t dims{1, 1, M};
+            auto w = array::ones<complex_t<T>>(dims);
+            auto u = array::zeros<complex_t<T>>(recon_dims);
+
+            // compute point spread function
+            nufft::nufft3d1(w, u, grid);
+            nufft::nufft3d2(w, u, grid);
+
+            auto d = array::max(array::abs(u), 1.0e-12);
+            w = array::div(u, d);
+            nufft::nufft3d1(w, u, grid);
+            auto d = array::real(u);
+            auto floor = 1.0e-03 * array::max(d);
+            std::transform(d.begin(), d.end(), w_.begin(),
+                           [floor](T x) { return std::max(x, floor); });
         }
     };
 } // namespace tomocam::opt

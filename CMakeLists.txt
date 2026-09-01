@@ -72,6 +72,7 @@ FetchContent_MakeAvailable(tomlplusplus)
 include_directories(${tomlplusplus_SOURCE_DIR}/include)
 
 # finufft
+enable_language(C)
 find_package(finufft REQUIRED)
 add_library(tomocam_scalar SHARED ${SRC})
 target_link_libraries(tomocam_scalar PUBLIC FFTW::double)

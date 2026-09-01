@@ -36,9 +36,6 @@ namespace tomocam {
         auto xcmplx = array::to_complex(x);
         auto ccmplx = Array<std::complex<T>>(grid.dims());
         nufft::nufft3d2(ccmplx, xcmplx, grid);
-        std::transform(std::execution::par_unseq, ccmplx.begin(), ccmplx.end(),
-                       grid.w.begin(), ccmplx.begin(),
-                       [](const std::complex<T> &c, T w) { return c * w; });
         nufft::nufft3d1(ccmplx, xcmplx, grid);
         return array::to_real(xcmplx) / scale;
     }

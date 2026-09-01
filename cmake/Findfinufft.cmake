@@ -1,22 +1,47 @@
 
-# Find or Fetch the finufft library
+# Find finufft library
 #
-# This module defines the following variables:
+# This module defines:
 #   finufft_FOUND
 #   finufft_INCLUDE_DIR
 #   finufft_LIBRARIES
 #
-# This module defines the following targets:
+# Targets:
 #   finufft::finufft
 #   finufft::cufinufft
-
-
+#
+# Set finufft_DIR to the directory containing finufftConfig.cmake, e.g.:
+#   cmake -Dfinufft_DIR=~/finufft/lib/cmake/finufft ..
+#
+# For module-mode fallback set finufft_ROOT to the installation prefix, or
+# rely on the hardcoded ~/finufft search path.
 
 include(FindPackageHandleStandardArgs)
 
-# try to find the local finufft installation
+# --- Config mode (preferred) ---
+# finufft_DIR is the cmake config directory; try it first with NO_DEFAULT_PATH
+# so the user's explicit choice wins, then fall through to the full cmake search.
+find_package(finufft CONFIG QUIET
+    PATHS
+        "${finufft_DIR}"
+        "$ENV{HOME}/finufft/lib/cmake/finufft"
+        "$ENV{HOME}/finufft/lib64/cmake/finufft"
+    NO_DEFAULT_PATH
+)
+if (NOT finufft_FOUND)
+    find_package(finufft CONFIG QUIET)
+endif()
+
+if (finufft_FOUND)
+    message(STATUS "Found finufft (config): ${finufft_DIR}")
+    return()
+endif()
+
+# --- Module mode fallback ---
+# ~/finufft is first so a local build takes priority over system installations.
+# finufft_ROOT (CMake 3.12+) is honoured automatically by find_path/find_library.
 set(finufft_SEARCH_PATHS
-    ${finufft_DIR}
+    ~/finufft
     /usr/local
     /opt/homebrew
     /opt/local
@@ -25,74 +50,81 @@ set(finufft_SEARCH_PATHS
 )
 
 find_path(finufft_INCLUDE_DIR
-    NAMES 
-        finufft.h 
-    HINTS 
-        ${finufft_DIR} 
-        $ENV{finufft_DIR} 
+    NAMES
+        finufft.h
+    HINTS
         ${CMAKE_PREFIX_PATH}
-    PATH_SUFFIXES 
+    PATH_SUFFIXES
         include
-    PATHS 
+    PATHS
         ${finufft_SEARCH_PATHS}
 )
 
-find_library(finufft_LIBRARIES
-    NAMES 
-        finufft 
-    HINTS 
-        ${finufft_DIR} 
-        $ENV{finufft_DIR} 
+find_library(finufft_LIBRARY
+    NAMES
+        finufft
+    HINTS
         ${CMAKE_PREFIX_PATH}
-    PATH_SUFFIXES 
-        lib64 
+    PATH_SUFFIXES
+        lib64
         lib
-    PATHS 
+    PATHS
         ${finufft_SEARCH_PATHS}
 )
 
-find_library(cufinufft_LIBRARIES
-    NAMES 
-        cufinufft 
-    HINTS 
-        $ENV{finufft_DIR} 
+find_library(cufinufft_LIBRARY
+    NAMES
+        cufinufft
+    HINTS
         ${CMAKE_PREFIX_PATH}
-    PATH_SUFFIXES 
-        lib64 
+    PATH_SUFFIXES
+        lib64
         lib
-    PATHS 
+    PATHS
         ${finufft_SEARCH_PATHS}
 )
 
-if (finufft_INCLUDE_DIR AND finufft_LIBRARIES)
+if (finufft_INCLUDE_DIR AND finufft_LIBRARY)
     set(finufft_FOUND TRUE)
+    set(finufft_LIBRARIES ${finufft_LIBRARY})
+    if (cufinufft_LIBRARY)
+        list(APPEND finufft_LIBRARIES ${cufinufft_LIBRARY})
+    endif()
 
-    FIND_PACKAGE_HANDLE_STANDARD_ARGS(finufft 
-        REQUIRED_VARS 
+    find_package_handle_standard_args(finufft
+        REQUIRED_VARS
             finufft_INCLUDE_DIR
-            finufft_LIBRARIES
-            finufft_FOUND
+            finufft_LIBRARY
     )
 
     mark_as_advanced(
         finufft_INCLUDE_DIR
-        finufft_LIBRARIES
+        finufft_LIBRARY
+        cufinufft_LIBRARY
     )
 
-    # create imported target
     if (NOT TARGET finufft::finufft)
-        add_library(finufft::finufft INTERFACE IMPORTED GLOBAL)
+        add_library(finufft::finufft UNKNOWN IMPORTED GLOBAL)
+        set_target_properties(finufft::finufft PROPERTIES IMPORTED_LOCATION ${finufft_LIBRARY})
         target_include_directories(finufft::finufft INTERFACE ${finufft_INCLUDE_DIR})
-        target_link_libraries(finufft::finufft INTERFACE ${finufft_LIBRARIES})
-     endif()
-
-    if (cufinufft_LIBRARIES AND NOT TARGET finufft::cufinufft)
-        add_library(finufft::cufinufft INTERFACE IMPORTED GLOBAL)
-        target_include_directories(finufft::cufinufft INTERFACE ${finufft_INCLUDE_DIR})
-        target_link_libraries(finufft::cufinufft INTERFACE ${cufinufft_LIBRARIES})
     endif()
 
-     message(STATUS "Found finufft: ${finufft_LIBRARIES}")
+    if (cufinufft_LIBRARY AND NOT TARGET finufft::cufinufft)
+        add_library(finufft::cufinufft UNKNOWN IMPORTED GLOBAL)
+        set_target_properties(finufft::cufinufft PROPERTIES IMPORTED_LOCATION ${cufinufft_LIBRARY})
+        target_include_directories(finufft::cufinufft INTERFACE ${finufft_INCLUDE_DIR})
+    endif()
+
+    message(STATUS "Found finufft (module): ${finufft_LIBRARY}")
+    if (cufinufft_LIBRARY)
+        message(STATUS "Found cufinufft: ${cufinufft_LIBRARY}")
+    endif()
 else()
-    message(FATAL_ERROR "local installation of finufft not found")
+    message(FATAL_ERROR
+        "finufft not found.\n"
+        "  Config mode:  set finufft_DIR to the directory containing finufftConfig.cmake\n"
+        "                e.g. -Dfinufft_DIR=~/finufft/lib/cmake/finufft\n"
+        "  Module mode:  set finufft_ROOT to the installation prefix\n"
+        "                e.g. -Dfinufft_ROOT=~/finufft"
+    )
 endif()

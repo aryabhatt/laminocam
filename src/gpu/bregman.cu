@@ -113,7 +113,7 @@ namespace tomocam::gpu::opt {
             return Au;
         };
 
-        for (int iter = 0; iter < outer_max; ++iter) {
+        for (size_t iter = 0; iter < outer_max; ++iter) {
 
             // x-update: solve (A^TA + μ∇^T∇)x = A^T y + μ∇^T(d - b)
             std::array<DeviceArray<T>, 3> d_b;
@@ -138,7 +138,8 @@ namespace tomocam::gpu::opt {
 
             // sk = sqrt(∑(dx[i] + b[i])^2)
             auto sk = compute_sk(dx, b);
-            // Checkpoint: after CG, grad, sk. Live: 8N persistent + dx[3] (3N) + sk (1N) = 12N
+            // Checkpoint: after CG, grad, sk. Live: 8N persistent + dx[3] (3N) + sk
+            // (1N) = 12N
             MEM_CHECK("sb: post-cgsolver, after grad+sk (8N + dx[3] + sk = 12N)",
                       12 * x.size() * sizeof(T));
 
