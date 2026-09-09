@@ -28,8 +28,10 @@
 #include "array.h"
 #include "dtypes.h"
 #include "polar_grid.h"
+#include "polar_grid2d.h"
 #include "rotation.h"
 #include "toeplitz.h"
+#include "toeplitz2d.h"
 
 namespace tomocam {
 
@@ -50,6 +52,20 @@ namespace tomocam {
 
     template <typename T>
     Array<T> sysmat(const Array<T> &x, const cpu::PointSpreadFunction<T> &psf);
+
+    // 2D slice-by-slice tomography (vertical rotation axis)
+    template <typename T>
+    Array<T> forward2d(const Array<T> &volume, const cpu::PolarGrid2D<T> &grid);
+
+    template <typename T>
+    Array<T> backproj2d(const Array<T> &sinogram, const cpu::PolarGrid2D<T> &grid,
+                        const dims_t &recon_dims);
+
+    template <typename T>
+    Array<T> sysmat2d(const Array<T> &x, const cpu::PolarGrid2D<T> &grid);
+
+    template <typename T>
+    Array<T> sysmat2d(const Array<T> &x, const cpu::PointSpreadFunction2D<T> &psf);
 
 } // namespace tomocam
 

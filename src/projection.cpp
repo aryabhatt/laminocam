@@ -138,4 +138,54 @@ namespace tomocam {
                                     const cpu::PolarGrid<double> &, const dims_t &,
                                     const std::vector<std::array<double, 2>> &);
 
+    // 2D slice-by-slice tomography (vertical rotation axis): forward
+    // projection. Every slice shares the same polar grid, so nufft2d2
+    // broadcasts the NUFFT over the outer (slice) axis; fft1/fftshift1
+    // already treat that axis (and the angle axis) as a batch and apply
+    // the 1-D radial transform independently to every row.
+    template <typename T>
+    Array<T> forward2d(const Array<T> &volume, const cpu::PolarGrid2D<T> &pg) {
+        auto Ft = array::to_complex(volume);
+        Array<std::complex<T>> C(
+            dims_t{volume.nslices(), pg.nangles(), pg.nradial()});
+
+        nufft::nufft2d2<T>(C, Ft, pg);
+
+        C = fft::ifftshift1(C);
+        C = fft::ifft1(C);
+        C = fft::fftshift1(C);
+
+        T scale = static_cast<T>(pg.nradial());
+        return array::to_real<T>(C) / scale;
+    }
+    // Explicit instantiation forward2d
+    template Array<float> forward2d(const Array<float> &,
+                                    const cpu::PolarGrid2D<float> &);
+    template Array<double> forward2d(const Array<double> &,
+                                     const cpu::PolarGrid2D<double> &);
+
+    // 2D slice-by-slice tomography: unfiltered backprojection.
+    template <typename T>
+    Array<T> backproj2d(const Array<T> &sino, const cpu::PolarGrid2D<T> &pg,
+                        const dims_t &recon_dims) {
+        auto C = array::to_complex(sino);
+
+        C = fft::fftshift1(C);
+        C = fft::fft1(C);
+        C = fft::ifftshift1(C);
+
+        Array<std::complex<T>> F(recon_dims);
+        nufft::nufft2d1<T>(C, F, pg);
+
+        T scale = static_cast<T>(pg.nradial());
+        return array::to_real<T>(F) / scale;
+    }
+    // Explicit instantiation backproj2d
+    template Array<float> backproj2d(const Array<float> &,
+                                     const cpu::PolarGrid2D<float> &,
+                                     const dims_t &);
+    template Array<double> backproj2d(const Array<double> &,
+                                      const cpu::PolarGrid2D<double> &,
+                                      const dims_t &);
+
 } // namespace tomocam

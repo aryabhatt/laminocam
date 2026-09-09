@@ -54,4 +54,31 @@ namespace tomocam {
                                  const cpu::PointSpreadFunction<float> &);
     template Array<double> sysmat(const Array<double> &,
                                   const cpu::PointSpreadFunction<double> &);
+
+    // 2D slice-by-slice normal operator (vertical rotation axis): direct NUFFT path
+    template <typename T>
+    Array<T> sysmat2d(const Array<T> &x, const cpu::PolarGrid2D<T> &grid) {
+
+        T scale = static_cast<T>(grid.nradial());
+        auto xcmplx = array::to_complex(x);
+        auto ccmplx =
+            Array<std::complex<T>>(dims_t{x.nslices(), grid.nangles(), grid.nradial()});
+        nufft::nufft2d2(ccmplx, xcmplx, grid);
+        nufft::nufft2d1(ccmplx, xcmplx, grid);
+        return array::to_real(xcmplx) / scale;
+    }
+    template Array<float> sysmat2d(const Array<float> &,
+                                   const cpu::PolarGrid2D<float> &);
+    template Array<double> sysmat2d(const Array<double> &,
+                                    const cpu::PolarGrid2D<double> &);
+
+    // 2D slice-by-slice normal operator: Toeplitz (PSF convolution) path
+    template <typename T>
+    Array<T> sysmat2d(const Array<T> &x, const cpu::PointSpreadFunction2D<T> &psf) {
+        return psf.convolve(x);
+    }
+    template Array<float> sysmat2d(const Array<float> &,
+                                   const cpu::PointSpreadFunction2D<float> &);
+    template Array<double> sysmat2d(const Array<double> &,
+                                    const cpu::PointSpreadFunction2D<double> &);
 } // namespace tomocam

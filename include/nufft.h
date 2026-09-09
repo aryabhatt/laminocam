@@ -29,6 +29,7 @@
 #include "dtypes.h"
 #include "finufft_plan_cache.h"
 #include "polar_grid.h"
+#include "polar_grid2d.h"
 
 namespace tomocam::nufft {
 
@@ -54,6 +55,43 @@ namespace tomocam::nufft {
         auto &plan = plans::cache<T>.get_plan(2, 3, n_modes, -1);
         plan.set_points(pg);
         plan.execute(cz.begin(), const_cast<std::complex<T> *>(fz.begin()));
+    }
+
+    // 2D Type-1 NUFFT: nonuniform points to uniform grid, broadcast over the
+    // outer ("slice") axis of cz/fz. The polar grid is identical for every
+    // slice (vertical rotation axis), so set_points() runs once and
+    // execute() runs once per slice.
+    template <typename T>
+    void nufft2d1(const Array<std::complex<T>> &cz, Array<std::complex<T>> &fz,
+                  const cpu::PolarGrid2D<T> &pg) {
+        std::array<int64_t, 3> n_modes = {static_cast<int64_t>(fz.ncols()),
+                                          static_cast<int64_t>(fz.nrows()), 1};
+        auto &plan = plans::cache<T>.get_plan(1, 2, n_modes, 1);
+        plan.set_points(pg);
+
+        size_t nvox = fz.nrows() * fz.ncols();
+        for (size_t i = 0; i < fz.nslices(); ++i) {
+            auto *cz_i = const_cast<std::complex<T> *>(cz.begin()) + i * pg.npts;
+            auto *fz_i = fz.begin() + i * nvox;
+            plan.execute(cz_i, fz_i);
+        }
+    }
+
+    // 2D Type-2 NUFFT: uniform grid to nonuniform points, broadcast over slices.
+    template <typename T>
+    void nufft2d2(Array<std::complex<T>> &cz, const Array<std::complex<T>> &fz,
+                  const cpu::PolarGrid2D<T> &pg) {
+        std::array<int64_t, 3> n_modes = {static_cast<int64_t>(fz.ncols()),
+                                          static_cast<int64_t>(fz.nrows()), 1};
+        auto &plan = plans::cache<T>.get_plan(2, 2, n_modes, -1);
+        plan.set_points(pg);
+
+        size_t nvox = fz.nrows() * fz.ncols();
+        for (size_t i = 0; i < fz.nslices(); ++i) {
+            auto *cz_i = cz.begin() + i * pg.npts;
+            auto *fz_i = const_cast<std::complex<T> *>(fz.begin()) + i * nvox;
+            plan.execute(cz_i, fz_i);
+        }
     }
 
 } // namespace tomocam::nufft

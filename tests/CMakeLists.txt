@@ -11,6 +11,14 @@ add_executable(test_sysmat_toeplitz test_sysmat_toeplitz.cpp)
 target_link_libraries(test_sysmat_toeplitz PUBLIC tomocam_scalar)
 add_test(NAME sysmat_toeplitz COMMAND test_sysmat_toeplitz)
 
+add_executable(test_adjoint2d test_adjoint2d.cpp)
+target_link_libraries(test_adjoint2d PUBLIC tomocam_scalar)
+add_test(NAME adjoint2d COMMAND test_adjoint2d)
+
+add_executable(test_sysmat_toeplitz2d test_sysmat_toeplitz2d.cpp)
+target_link_libraries(test_sysmat_toeplitz2d PUBLIC tomocam_scalar)
+add_test(NAME sysmat_toeplitz2d COMMAND test_sysmat_toeplitz2d)
+
 if (USE_GPU)
 
     add_executable(test_padding test_padding.cu)

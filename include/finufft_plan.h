@@ -29,6 +29,7 @@
 
 #include "array.h"
 #include "polar_grid.h"
+#include "polar_grid2d.h"
 
 namespace tomocam::nufft {
 
@@ -93,9 +94,9 @@ namespace tomocam::nufft {
 
         FinufftPlanWrapper(int type, int dim, std::array<int64_t, 3> n_modes,
                            int iflag) {
-            if (dim != static_cast<int>(n_modes.size()))
+            if (dim < 1 || dim > 3)
                 throw std::runtime_error(
-                    "FinufftPlanWrapper: dim does not match size of n_modes");
+                    "FinufftPlanWrapper: dim must be 1, 2, or 3");
 
             finufft_opts opts;
             Traits::default_opts(&opts);
@@ -139,6 +140,17 @@ namespace tomocam::nufft {
             T *z = const_cast<T *>(pg.z.begin());
             int ierr = Traits::setpts(plan_, pg.npts, x, y, z, 0, nullptr, nullptr,
                                       nullptr);
+            if (ierr != 0) throw std::runtime_error("Error in finufft_setpts");
+        }
+
+        void set_points(const cpu::PolarGrid2D<T> &pg) {
+            if (!initialized_)
+                throw std::runtime_error(
+                    "FinufftPlanWrapper::set_points: plan not initialized");
+            T *x = const_cast<T *>(pg.x.begin());
+            T *y = const_cast<T *>(pg.y.begin());
+            int ierr = Traits::setpts(plan_, pg.npts, x, y, nullptr, 0, nullptr,
+                                      nullptr, nullptr);
             if (ierr != 0) throw std::runtime_error("Error in finufft_setpts");
         }
 
