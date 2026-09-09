@@ -44,4 +44,8 @@ if (USE_GPU)
     add_executable(test_device_array_ops test_device_array_ops.cu)
     target_link_libraries(test_device_array_ops PUBLIC tomocam_scalar)
     add_test(NAME device_array_ops COMMAND test_device_array_ops)
+
+    add_executable(test_density_comp_gpu_cpu test_density_comp_gpu_cpu.cu)
+    target_link_libraries(test_density_comp_gpu_cpu PUBLIC tomocam_scalar)
+    add_test(NAME density_comp_gpu_cpu COMMAND test_density_comp_gpu_cpu)
 endif()

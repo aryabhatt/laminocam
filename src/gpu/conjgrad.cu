@@ -33,6 +33,7 @@
 #include "gpu/device_array_ops.h"
 #include "gpu/gpu_opt.h"
 #include "gpu/mem_check.h"
+#include "gpu/precond.h"
 #include "gpu/utils.h"
 
 namespace tomocam::gpu::opt {
@@ -45,9 +46,7 @@ namespace tomocam::gpu::opt {
     template <typename T>
     DeviceArray<T> cgsolver(const gpuFunction<T> &A, const DeviceArray<T> &y,
                             const DeviceArray<T> &x0, size_t max_iter, T tol,
-                            T xtol) {
-
-        auto precond_apply = [](const DeviceArray<T> &r) { return r.clone(); };
+                            T xtol, IPrecond<T> *P) {
 
         // Initialize solution and residual arrays
         DeviceArray<T> x = x0.clone();
@@ -57,8 +56,9 @@ namespace tomocam::gpu::opt {
         // normalize residual with respect to y
         T y_norm = gpu::array::norm2(y);
 
-        // z = M^{-1} r,  p = z,  rs_old = z^T r
-        DeviceArray<T> z = precond_apply(r);
+        // z = P^{-1} r,  p = z,  rs_old = z^T r
+        DeviceArray<T> z = r.clone();
+        if (P) P->apply(r, z);
         DeviceArray<T> p = z.clone();
         T rs_old = gpu::array::dot(z, r);
 
@@ -85,9 +85,9 @@ namespace tomocam::gpu::opt {
             T dx = gpu::array::norm2(p * alpha) / (gpu::array::norm2(x) + T(1e-8));
 
             // Apply preconditioner and compute new residual norm
-            T rs_new = 0;
-            z = precond_apply(r);
-            rs_new = gpu::array::dot(z, r);
+            z = r.clone();
+            if (P) P->apply(r, z);
+            T rs_new = gpu::array::dot(z, r);
 
             // Update search direction: p = z + beta * p
             T beta = rs_new / rs_old;
@@ -111,10 +111,12 @@ namespace tomocam::gpu::opt {
     template DeviceArray<float> cgsolver(const gpuFunction<float> &A,
                                          const DeviceArray<float> &y,
                                          const DeviceArray<float> &x0,
-                                         size_t max_iter, float tol, float xtol);
+                                         size_t max_iter, float tol, float xtol,
+                                         IPrecond<float> *P);
     template DeviceArray<double> cgsolver(const gpuFunction<double> &A,
                                           const DeviceArray<double> &y,
                                           const DeviceArray<double> &x0,
-                                          size_t max_iter, double tol, double xtol);
+                                          size_t max_iter, double tol, double xtol,
+                                          IPrecond<double> *P);
 
 } // namespace tomocam::gpu::opt

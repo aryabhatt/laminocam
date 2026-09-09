@@ -37,11 +37,11 @@ namespace tomocam {
         std::vector<T> angles;
         T gamma;
         T beta = T(0);
-        std::vector<std::array<T, 2>> shifts;  // per-projection [dx, dy] in pixels
+        std::vector<std::array<T, 2>> shifts; // per-projection [dx, dy] in pixels
     };
 
     enum class Regularizer { SPLIT_BREGMAN, UNCONSTRAINED };
-    enum class PrecondType { IDENTITY, DENSITY, TOEPLITZ };
+    enum class PrecondType { IDENTITY, DENSITY };
 
     struct ReconParams {
         Regularizer regularizer = Regularizer::UNCONSTRAINED;
@@ -66,9 +66,8 @@ namespace tomocam {
                               recon_dims[1], recon_dims[2]);
             os << "  tol: " << tol << "\n";
             os << "  xtol: " << xtol << "\n";
-            std::string pre_str = (precond == PrecondType::TOEPLITZ)  ? "toeplitz"
-                                : (precond == PrecondType::DENSITY)   ? "density"
-                                                                      : "identity";
+            std::string pre_str =
+                (precond == PrecondType::DENSITY) ? "density" : "identity";
             os << "  regularizer: " << reg_str << "\n";
             os << "  preconditioner: " << pre_str << "\n";
             if (regularizer == Regularizer::SPLIT_BREGMAN) {

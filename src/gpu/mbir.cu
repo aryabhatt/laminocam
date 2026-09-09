@@ -28,6 +28,7 @@
 #include "gpu/device_array_ops.h"
 #include "gpu/gpu_opt.h"
 #include "gpu/padding.h"
+#include "gpu/precond.h"
 #include "gpu/projection.h"
 #include "gpu/toeplitz.h"
 #include "padding.h"
@@ -135,20 +136,30 @@ namespace tomocam::gpu {
         // define the forward operator
         auto A = [&psf](const DeviceArray<T> &x) { return sysmat(x, psf); };
 
+        // build preconditioner (once, before the solver loop)
+        std::unique_ptr<opt::IPrecond<T>> precond_owner;
+        opt::IPrecond<T> *P = nullptr;
+        if (params.precond == PrecondType::DENSITY) {
+            std::cout << "Building GPU density-compensation preconditioner ...\n";
+            PolarGrid<T> pg(theta, gamma, beta, proj_dims.n2, proj_dims.n3);
+            precond_owner = std::make_unique<opt::DensityComp<T>>(pg, recon_dims);
+            P = precond_owner.get();
+        }
+
         // run optimization
         auto recon = DeviceArray<T>(recon_dims);
         switch (params.regularizer) {
             case Regularizer::UNCONSTRAINED: {
                 std::cout << "Starting unconstrained reconstruction with CG ...\n";
                 recon = opt::cgsolver<T>(A, yT, x0, params.maxIters, params.tol,
-                                         params.xtol);
+                                         params.xtol, P);
                 break;
             }
             case Regularizer::SPLIT_BREGMAN: {
                 std::cout << "Starting MBIR with Split-Bregman method ...\n";
                 recon = opt::split_bregman<T>(A, yT, x0, params.lambda, params.mu,
                                               params.maxIters, params.innerIters,
-                                              params.tol, params.xtol);
+                                              params.tol, params.xtol, P);
 
                 break;
             }

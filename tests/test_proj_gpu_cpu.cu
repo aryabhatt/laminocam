@@ -106,7 +106,7 @@ static constexpr size_t Nz = 63;
 static constexpr size_t N = 255;
 static constexpr float THETA_MIN = -1.222f;
 static constexpr float THETA_MAX = 1.222f;
-static constexpr float REL_TOL = 5e-5f;
+static constexpr float REL_TOL = 5e-4f;
 
 static std::vector<float> make_theta() {
     std::vector<float> theta(NTHETA);

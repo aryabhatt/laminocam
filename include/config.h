@@ -355,12 +355,12 @@ namespace tomocam {
         }
         {
             auto pre_str = (*recon)["precond"].value_or<std::string>("identity");
-            if (pre_str == "toeplitz") {
-                p.precond = PrecondType::TOEPLITZ;
-            } else if (pre_str == "density") {
+            if (pre_str == "density") {
                 p.precond = PrecondType::DENSITY;
-            } else {
-                p.precond = PrecondType::IDENTITY;
+            } else if (pre_str != "identity") {
+                throw std::runtime_error(std::format(
+                    "[recon_params] unknown precond '{}'; valid values: identity, density",
+                    pre_str));
             }
             p.precond_reg = (*recon)["precond_reg"].value_or<float>(1e-2f);
         }

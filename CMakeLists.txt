@@ -35,6 +35,7 @@ set(SRC
 if (${USE_GPU})
   list(APPEND SRC
     src/gpu/array_ops.cu
+    src/gpu/density_comp.cu
     src/gpu/device_array.cu
     src/gpu/bregman.cu
     src/gpu/conjgrad.cu

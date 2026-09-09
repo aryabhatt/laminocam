@@ -25,6 +25,7 @@
 #include <functional>
 
 #include "gpu/device_array.h"
+#include "gpu/precond.h"
 
 namespace tomocam::gpu::opt {
 
@@ -40,12 +41,14 @@ namespace tomocam::gpu::opt {
      * @param x0       Initial guess
      * @param max_iter Maximum number of CG iterations
      * @param tol      Convergence tolerance (residual norm)
+     * @param xtol     Convergence tolerance (solution change)
+     * @param P        Optional preconditioner (nullptr = identity)
      * @return         Approximate solution x on the GPU
      */
     template <typename T>
     DeviceArray<T> cgsolver(const gpuFunction<T> &A, const DeviceArray<T> &y,
                             const DeviceArray<T> &x0, size_t max_iter, T tol,
-                            T xtol);
+                            T xtol, IPrecond<T> *P = nullptr);
 
     /**
      * @brief GPU Split Bregman solver for the sparse angle laminography problem:
@@ -66,7 +69,8 @@ namespace tomocam::gpu::opt {
     template <typename T>
     DeviceArray<T> split_bregman(const gpuFunction<T> &A, const DeviceArray<T> &y,
                                  const DeviceArray<T> &x0, T lambda, T mu,
-                                 size_t outer_max, size_t inner_max, T tol, T xtol);
+                                 size_t outer_max, size_t inner_max, T tol, T xtol,
+                                 IPrecond<T> *P = nullptr);
 
 } // namespace tomocam::gpu::opt
 

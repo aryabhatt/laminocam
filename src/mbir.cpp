@@ -142,12 +142,6 @@ namespace tomocam {
         std::unique_ptr<opt::IPrecond<T>> precond_owner;
         opt::IPrecond<T> *P = nullptr;
         switch (params.precond) {
-            case PrecondType::TOEPLITZ:
-                std::cout << "Building Toeplitz spectral preconditioner ...\n";
-                precond_owner = std::make_unique<opt::ToeplitzPrecond<T>>(
-                    psf, out_dims, static_cast<T>(params.precond_reg));
-                P = precond_owner.get();
-                break;
             case PrecondType::DENSITY:
                 std::cout << "Building density-compensation preconditioner ...\n";
                 precond_owner = std::make_unique<opt::DensityComp<T>>(pg, out_dims);

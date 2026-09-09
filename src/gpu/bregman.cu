@@ -30,6 +30,7 @@
 #include "gpu/finitediff.h"
 #include "gpu/gpu_opt.h"
 #include "gpu/mem_check.h"
+#include "gpu/precond.h"
 
 namespace tomocam::gpu::opt {
 
@@ -88,7 +89,8 @@ namespace tomocam::gpu::opt {
     template <typename T>
     DeviceArray<T> split_bregman(const gpuFunction<T> &A, const DeviceArray<T> &yT,
                                  const DeviceArray<T> &x0, T lambda, T mu,
-                                 size_t outer_max, size_t inner_max, T tol, T xtol) {
+                                 size_t outer_max, size_t inner_max, T tol, T xtol,
+                                 IPrecond<T> *P) {
 
         DeviceArray<T> x = x0.clone();
         DeviceArray<T> x_old = x0.clone();
@@ -131,7 +133,7 @@ namespace tomocam::gpu::opt {
             // Checkpoint: entering cgsolver, expect +6N inside (CG persistent)
             MEM_CHECK("sb: entering cgsolver (12N + ~6N CG persistent expected)",
                       18 * x.size() * sizeof(T));
-            x = cgsolver(Ap, rhs, x, inner_max, tol, xtol);
+            x = cgsolver(Ap, rhs, x, inner_max, tol, xtol, P);
 
             // isotropic TV shrinkage
             auto dx = grad(x);
@@ -168,11 +170,13 @@ namespace tomocam::gpu::opt {
     template DeviceArray<float>
     split_bregman(const gpuFunction<float> &A, const DeviceArray<float> &yT,
                   const DeviceArray<float> &x0, float lambda, float mu,
-                  size_t outer_max, size_t inner_max, float tol, float xtol);
+                  size_t outer_max, size_t inner_max, float tol, float xtol,
+                  IPrecond<float> *P);
     template DeviceArray<double>
     split_bregman(const gpuFunction<double> &A, const DeviceArray<double> &yT,
                   const DeviceArray<double> &x0, double lambda, double mu,
-                  size_t outer_max, size_t inner_max, double tol, double xtol);
+                  size_t outer_max, size_t inner_max, double tol, double xtol,
+                  IPrecond<double> *P);
 
     template DeviceArray<float>
     compute_sk(const std::array<DeviceArray<float>, 3> &,
