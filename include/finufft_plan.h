@@ -67,7 +67,7 @@ namespace tomocam::nufft {
 
         static int makeplan(int type, int dim, int64_t *n_modes, int iflag,
                             int ntrans, plan_type *plan, finufft_opts *opts) {
-            constexpr float TOL = 1e-5f;
+            constexpr float TOL = 5e-4f;
             return finufftf_makeplan(type, dim, n_modes, iflag, ntrans, TOL, plan,
                                      opts);
         }
