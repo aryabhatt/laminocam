@@ -1,5 +1,5 @@
 # Slice-by-slice tomography, vertical rotation axis.
-# Run: ./mbir2d_scalar config.toml
+# Run: ./recon_tomo config.toml
 
 [[input]]
 filename = "/path/to/projections.h5"    # .tiff/.tif or .h5/.hdf5

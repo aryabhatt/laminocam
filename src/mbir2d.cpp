@@ -114,12 +114,12 @@ int main(int argc, char **argv) {
     auto output = tomocam::parse_output_params(config);
 
     if (datasets.empty()) {
-        throw std::runtime_error("mbir2d: no [[input]] datasets found");
+        throw std::runtime_error("recon_tomo: no [[input]] datasets found");
     }
 
     dims_t recon_dims = params.recon_dims;
     if (recon_dims.n2 != recon_dims.n3) {
-        throw std::runtime_error(std::format("mbir2d: recon_dims must be square "
+        throw std::runtime_error(std::format("recon_tomo: recon_dims must be square "
                                              "in-plane (n2 == n3), got [{}, {}, {}]",
                                              recon_dims.n1, recon_dims.n2,
                                              recon_dims.n3));
@@ -134,7 +134,7 @@ int main(int argc, char **argv) {
         if (std::abs(datasets[j].gamma) > TILT_EPS ||
             std::abs(datasets[j].beta) > TILT_EPS) {
             throw std::runtime_error(std::format(
-                "mbir2d: dataset {} has gamma={:.4f}, beta={:.4f} (radians) -- "
+                "recon_tomo: dataset {} has gamma={:.4f}, beta={:.4f} (radians) -- "
                 "this executable only supports vertical-axis tomography "
                 "(gamma=beta=0). Use recon_lamino for laminography.",
                 j, datasets[j].gamma, datasets[j].beta));
@@ -143,7 +143,7 @@ int main(int argc, char **argv) {
             if (std::abs(s[0]) > TILT_EPS || std::abs(s[1]) > TILT_EPS) {
                 std::cerr << std::format(
                     "Warning: dataset {} has non-zero per-projection shifts; "
-                    "mbir2d does not yet support center-of-rotation shifts "
+                    "recon_tomo does not yet support center-of-rotation shifts "
                     "and will ignore them.\n",
                     j);
                 break;

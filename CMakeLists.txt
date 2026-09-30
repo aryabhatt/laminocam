@@ -111,12 +111,12 @@ target_link_libraries(forward_scalar PRIVATE tomocam_scalar tomlplusplus::tomlpl
 target_link_libraries(forward_scalar PRIVATE TIFF::TIFF ${HDF5_LIBRARIES})
 
 # 2D slice-by-slice (vertical rotation axis) tomography reconstruction
-add_executable(mbir2d_scalar src/mbir2d.cpp)
-target_link_libraries(mbir2d_scalar PRIVATE tomocam_scalar tomlplusplus::tomlplusplus)
-target_link_libraries(mbir2d_scalar PRIVATE TIFF::TIFF ${HDF5_LIBRARIES})
+add_executable(recon_tomo src/mbir2d.cpp)
+target_link_libraries(recon_tomo PRIVATE tomocam_scalar tomlplusplus::tomlplusplus)
+target_link_libraries(recon_tomo PRIVATE TIFF::TIFF ${HDF5_LIBRARIES})
 
 install(TARGETS recon_lamino RUNTIME DESTINATION bin)
-install(TARGETS mbir2d_scalar RUNTIME DESTINATION bin)
+install(TARGETS recon_tomo RUNTIME DESTINATION bin)
 install(TARGETS forward_scalar RUNTIME DESTINATION bin)
 install(TARGETS tomocam_scalar LIBRARY DESTINATION lib)
 

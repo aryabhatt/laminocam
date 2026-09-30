@@ -97,7 +97,7 @@ mu = 10
 **Notes:**
 - Angles are expected be in degrees
 - The angles file should be is ASCII format and contain one angle per line
-- A template configuration file (`config_template.toml`) is generated automatically if no input is provided
+- A template configuration file (`config_template.toml`) is generated automatically if no input is provided; `recon_lamino` writes the laminography template and `recon_tomo` the 2D tomography one
 
 ## Documentation
 The latest version is available in readthedocs: https://laminocam.readthedocs.io/en/latest/
