@@ -54,6 +54,8 @@ namespace tomocam {
 } // namespace tomocam
 
 // GPU headers
+#include "gpu/cufft_plan_cache.h"
+#include "gpu/cufinufft_plan_cache.h"
 #include "gpu/device_array.h"
 #include "gpu/device_array_ops.h"
 #include "gpu/polar_grid.h"
@@ -106,7 +108,10 @@ static constexpr size_t Nz = 63;
 static constexpr size_t N = 255;
 static constexpr float THETA_MIN = -1.222f;
 static constexpr float THETA_MAX = 1.222f;
-static constexpr float REL_TOL = 5e-4f;
+// The CPU FINUFFT plan runs at TOL = 5e-4 (include/finufft_plan.h) while the GPU
+// plan runs at 1.2e-6, so CPU and GPU differ by about the CPU's own error;
+// the normal operator roughly doubles it. Observed errors are 6e-4 to 1.2e-3.
+static constexpr float REL_TOL = 2e-3f;
 
 static std::vector<float> make_theta() {
     std::vector<float> theta(NTHETA);
@@ -204,5 +209,9 @@ int main() {
     test_sysmat(vol, cpu_pg, gpu_pg);
 
     std::cout << std::format("\nResults: {} passed, {} failed\n", g_pass, g_fail);
+
+    // release cached plans before the CUDA runtime unloads at exit
+    tomocam::gpu::nufft::plans::cache<float>.clear();
+    tomocam::gpu::fft::cache::plans<float>.clear();
     return (g_fail == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
