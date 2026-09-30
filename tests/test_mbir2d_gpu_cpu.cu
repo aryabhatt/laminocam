@@ -85,7 +85,7 @@ static bool test_chunked_convolve() {
 
     DeviceArray<float> d_x(Array<float>::random(dims));
     auto whole = psf.convolve(d_x).to_host();
-    psf.set_max_chunk(2); // 7 slices -> slabs of 2, 2, 2, 1
+    psf.set_max_partition(2); // 7 slices -> 4 x 2, last zero-padded
     auto slabs = psf.convolve(d_x).to_host();
     return report("convolve: slabs of 2 vs single shot", rel_err(slabs, whole),
                   1e-6f);

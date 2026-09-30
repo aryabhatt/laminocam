@@ -48,7 +48,10 @@ namespace tomocam::gpu {
         using complex_t = cuda::std::complex<T>;
         size_t psf_n_;
         DeviceArray<complex_t> kernel_hat_; // one 2D kernel: {1, psf_n_, psf_n_/2+1}
-        size_t max_chunk_ = 0; // 0: pick the slab size from free device memory
+        // Upper bound on slices convolved at once. Fixed for the lifetime of
+        // the PSF so the batched cuFFT plans (keyed on batch size) are reused
+        // from the plan cache instead of re-created on every call.
+        size_t max_partition_ = 0;
 
         static size_t next_fast_dim(size_t n) {
             size_t best = 1;
@@ -101,24 +104,36 @@ namespace tomocam::gpu {
             // PSF is real for a symmetric grid; extract real part before R2C FFT
             auto kernel_real = gpu::array::to_real(nufft_out);
             kernel_hat_ = gpu::fft::rfft2d(kernel_real);
+
+            // Size the partition once, from the memory free now. Per slice the
+            // working set is the padded real slice, its half spectrum, the C2R
+            // result and the R2C/C2R cuFFT work areas: ~5 * psf_n_^2 elements.
+            // Budget a quarter of free memory; the solver owns the rest.
+            size_t free_b = 0, total_b = 0;
+            SAFE_CALL(cudaMemGetInfo(&free_b, &total_b));
+            const size_t per_slice = 5 * psf_n_ * psf_n_ * sizeof(T);
+            max_partition_ = std::max<size_t>(1, (free_b / 4) / per_slice);
         }
 
-        // Cap the number of slices convolved at once (0 = automatic). Mainly
-        // for tests that need to exercise the multi-slab path on small inputs.
-        void set_max_chunk(size_t n) { max_chunk_ = n; }
+        // Override the maximum partition size (slices convolved at once).
+        // Mainly for tests that need to exercise the multi-partition path on
+        // small inputs, and for a scheduler that sizes partitions itself.
+        void set_max_partition(size_t n) { max_partition_ = std::max<size_t>(1, n); }
 
-        // Slices are independent, so the volume is convolved in slabs of
-        // `chunk` slices to bound the padded-FFT working set.
+        // Slices are independent, so the volume is convolved in equal-sized
+        // partitions; the last one is zero-padded with empty slices (zeros in,
+        // zeros out) so every call uses a single batch size and hence a
+        // single pair of cached cuFFT plans.
         DeviceArray<T> convolve(const DeviceArray<T> &input) const {
             const dims_t dims = input.dims();
-            const size_t chunk = slab_size(dims.n1);
+            const size_t chunk = partition_size(dims.n1);
             if (chunk >= dims.n1) return convolve_chunk(input);
 
             DeviceArray<T> output(dims);
             const size_t plane = dims.n2 * dims.n3;
             for (size_t s = 0; s < dims.n1; s += chunk) {
                 const size_t nb = std::min(chunk, dims.n1 - s);
-                DeviceArray<T> slab(dims_t{nb, dims.n2, dims.n3});
+                DeviceArray<T> slab(dims_t{chunk, dims.n2, dims.n3}); // zeroed
                 copyD2D(slab.data(), input.data() + s * plane,
                         nb * plane * sizeof(T));
                 auto res = convolve_chunk(slab);
@@ -129,33 +144,31 @@ namespace tomocam::gpu {
         }
 
       private:
-        // number of slices per slab: padded real + complex spectrum + result +
-        // cuFFT workspace is roughly 4 * psf_n_^2 elements per slice; use at
-        // most half of the free device memory.
-        size_t slab_size(size_t nslices) const {
-            if (max_chunk_ > 0) return std::min(max_chunk_, nslices);
-            size_t free_b = 0, total_b = 0;
-            SAFE_CALL(cudaMemGetInfo(&free_b, &total_b));
-            const size_t per_slice = 4 * psf_n_ * psf_n_ * sizeof(T);
-            const size_t fit = std::max<size_t>(1, (free_b / 2) / per_slice);
-            return std::min(fit, nslices);
+        // Balanced partition size: the fewest partitions of at most
+        // max_partition_ slices, spread evenly (e.g. 745 with a cap of 403
+        // gives 2 x 373) to minimise zero-padding. Depends only on nslices.
+        size_t partition_size(size_t nslices) const {
+            const size_t nparts = (nslices + max_partition_ - 1) / max_partition_;
+            return (nslices + nparts - 1) / nparts;
         }
 
         DeviceArray<T> convolve_chunk(const DeviceArray<T> &input) const {
             auto orig_dims = input.dims();
-
-            // zero-pad every slice to match the PSF size
             dims_t pad_dims{orig_dims.n1, psf_n_, psf_n_};
-            auto padded = gpu::pad3d(input, pad_dims, PadType::RIGHT);
 
-            // one batched 2D R2C FFT handles every slice at once
-            auto output_hat = gpu::fft::rfft2d(padded);
-
-            // multiply each slice's spectrum by the single shared kernel
-            broadcast_multiply(output_hat);
-
-            // one batched 2D C2R inverse FFT
-            auto result = gpu::fft::irfft2d(output_hat, pad_dims);
+            // zero-pad every slice to the PSF size, one batched 2D R2C FFT,
+            // multiply by the shared kernel, one batched 2D C2R FFT. Scoped so
+            // `padded` and the spectrum are released as soon as they are used.
+            DeviceArray<T> result;
+            {
+                DeviceArray<complex_t> output_hat;
+                {
+                    auto padded = gpu::pad3d(input, pad_dims, PadType::RIGHT);
+                    output_hat = gpu::fft::rfft2d(padded);
+                }
+                broadcast_multiply(output_hat);
+                result = gpu::fft::irfft2d(output_hat, pad_dims);
+            }
 
             // cuFFT is unnormalized; match sysmat2d's NUFFT scale (nradial)
             T norm = static_cast<T>(pad_dims.n2) * static_cast<T>(pad_dims.n3) *
