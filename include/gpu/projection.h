@@ -27,7 +27,9 @@
 #include "dtypes.h"
 #include "gpu/device_array.h"
 #include "gpu/polar_grid.h"
+#include "gpu/polar_grid2d.h"
 #include "gpu/toeplitz.h"
+#include "gpu/toeplitz2d.h"
 
 namespace tomocam::gpu {
 
@@ -80,6 +82,21 @@ namespace tomocam::gpu {
 
     template <typename T>
     DeviceArray<T> sysmat(const DeviceArray<T> &x, const PointSpreadFunction<T> &psf);
+
+    // 2D slice-by-slice tomography (vertical rotation axis)
+    template <typename T>
+    DeviceArray<T> forward2d(const DeviceArray<T> &volume, const PolarGrid2D<T> &pg);
+
+    template <typename T>
+    DeviceArray<T> backproj2d(const DeviceArray<T> &sinogram, const PolarGrid2D<T> &pg,
+                              const dims_t &recon_dims);
+
+    template <typename T>
+    DeviceArray<T> sysmat2d(const DeviceArray<T> &x, const PolarGrid2D<T> &pg);
+
+    template <typename T>
+    DeviceArray<T> sysmat2d(const DeviceArray<T> &x,
+                            const PointSpreadFunction2D<T> &psf);
 } // namespace tomocam::gpu
 
 #endif // TOMOCAM_GPU_PROJECTION_H

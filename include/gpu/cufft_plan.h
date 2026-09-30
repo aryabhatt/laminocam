@@ -104,11 +104,16 @@ namespace tomocam::gpu::fft {
                 // single 3D transform over n[0] x n[1] x n[2]
                 int dims[] = {n[0], n[1], n[2]};
                 ierr = Traits::make_plan(3, dims, 1, &plan, fft_type);
-            } else {
+            } else if (ndim == 2) {
                 // batched 2D: batch = n[0], dims = n[1] x n[2]
                 int batch = n[0];
                 int dims[] = {n[1], n[2]};
                 ierr = Traits::make_plan(2, dims, batch, &plan, fft_type);
+            } else {
+                // batched 1D: batch = n[0], dims = n[1]
+                int batch = n[0];
+                int dims[] = {n[1]};
+                ierr = Traits::make_plan(1, dims, batch, &plan, fft_type);
             }
             if (ierr != 0) { throw std::runtime_error("Error in cufftPlanMany"); }
         }

@@ -30,6 +30,7 @@
 
 #include "array.h"
 #include "gpu/polar_grid.h"
+#include "gpu/polar_grid2d.h"
 #include "polar_grid.h"
 
 namespace tomocam::gpu::nufft {
@@ -101,9 +102,9 @@ namespace tomocam::gpu::nufft {
         cuFinfftPlanWrapper(int type, int dim, std::array<int64_t, 3> n_modes,
                             int iflag, int gpu_id) {
 
-            if (dim != n_modes.size()) {
-                throw std::runtime_error("cuFinfftPlanWrapper constructor: dim does "
-                                         "not match size of n_modes");
+            if (dim < 1 || dim > 3) {
+                throw std::runtime_error(
+                    "cuFinfftPlanWrapper constructor: dim must be 1, 2, or 3");
             }
             cufinufft_opts opts;
             cufinufft_default_opts(&opts);
@@ -127,6 +128,19 @@ namespace tomocam::gpu::nufft {
             T *z = const_cast<T *>(pg.z.data());
             int ierr =
                 Traits::setpts(plan, pg.npts, x, y, z, 0, nullptr, nullptr, nullptr);
+            if (ierr != 0) { throw std::runtime_error("Error in cufinufft_setpts"); }
+        }
+
+        // Overload for GPU-resident PolarGrid2D (coordinates already on device)
+        void set_points(const tomocam::gpu::PolarGrid2D<T> &pg) {
+            if (!initialized) {
+                throw std::runtime_error(
+                    "cuFinfftPlanWrapper::set_points called before make_plan");
+            }
+            T *x = const_cast<T *>(pg.x.data());
+            T *y = const_cast<T *>(pg.y.data());
+            int ierr = Traits::setpts(plan, pg.npts, x, y, nullptr, 0, nullptr,
+                                      nullptr, nullptr);
             if (ierr != 0) { throw std::runtime_error("Error in cufinufft_setpts"); }
         }
 

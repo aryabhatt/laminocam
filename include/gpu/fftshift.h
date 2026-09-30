@@ -35,6 +35,24 @@ namespace tomocam::gpu {
     DeviceArray<T> roll(const DeviceArray<T> &input, int3 delta);
 
     template <typename T>
+    DeviceArray<T> fftshift1(const DeviceArray<T> &input) {
+        size_t ncols = input.ncols();
+        int3 delta = {0, 0, 0};
+        delta.z = ncols / 2;
+
+        return roll(input, delta);
+    }
+
+    template <typename T>
+    DeviceArray<T> ifftshift1(const DeviceArray<T> &input) {
+        size_t ncols = input.ncols();
+        int3 delta = {0, 0, 0};
+        delta.z = ncols / 2;
+        if (ncols % 2 == 1) { delta.z += 1; }
+        return roll(input, delta);
+    }
+
+    template <typename T>
     DeviceArray<T> fftshift2(const DeviceArray<T> &input) {
         size_t nrows = input.nrows();
         size_t ncols = input.ncols();

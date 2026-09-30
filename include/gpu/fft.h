@@ -33,6 +33,43 @@ namespace tomocam::gpu::fft {
     template <typename T>
     using complex = cuda::std::complex<T>;
 
+    // batched 1D complex FFT along the last axis (ncols), batched over
+    // nslices*nrows -- used for the radial transform in the 2D (vertical
+    // rotation axis) forward2d/backproj2d path.
+    template <typename T>
+    DeviceArray<complex<T>> fft1d(DeviceArray<complex<T>> &data) {
+
+        int batch = static_cast<int>(data.nslices() * data.nrows());
+        int n = static_cast<int>(data.ncols());
+
+        DeviceArray<complex<T>> output(data.dims());
+
+        int dim = 1;
+        std::array<int, 3> n_modes = {batch, n, 0};
+        int device_id = -1;
+        SAFE_CALL(cudaGetDevice(&device_id));
+        auto &plan = cache::plans<T>.get_plan(dim, n_modes, CUFFT_C2C, device_id);
+        plan.execute(data.data(), output.data(), CUFFT_FORWARD);
+        return output;
+    }
+
+    template <typename T>
+    DeviceArray<complex<T>> ifft1d(DeviceArray<complex<T>> &data) {
+
+        int batch = static_cast<int>(data.nslices() * data.nrows());
+        int n = static_cast<int>(data.ncols());
+
+        DeviceArray<complex<T>> output(data.dims());
+
+        int dim = 1;
+        std::array<int, 3> n_modes = {batch, n, 0};
+        int device_id = -1;
+        SAFE_CALL(cudaGetDevice(&device_id));
+        auto &plan = cache::plans<T>.get_plan(dim, n_modes, CUFFT_C2C, device_id);
+        plan.execute(data.data(), output.data(), CUFFT_INVERSE);
+        return output;
+    }
+
     template <typename T>
     DeviceArray<complex<T>> fft2d(DeviceArray<complex<T>> &data) {
 
@@ -84,7 +121,9 @@ namespace tomocam::gpu::fft {
         int n2 = static_cast<int>(data.ncols());
 
         // allocate output array
-        DeviceArray<complex<T>> output({batch, n1, n2 / 2 + 1});
+        dims_t out_dims{static_cast<size_t>(batch), static_cast<size_t>(n1),
+                        static_cast<size_t>(n2 / 2 + 1)};
+        DeviceArray<complex<T>> output(out_dims);
 
         // get plan from cache
         int dim = 2;

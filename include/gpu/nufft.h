@@ -26,6 +26,7 @@
 #include "gpu/device_array.h"
 #include "gpu/device_array_ops.h"
 #include "gpu/polar_grid.h"
+#include "gpu/polar_grid2d.h"
 #include "gpu/utils.h"
 
 namespace tomocam::gpu::nufft {
@@ -70,6 +71,48 @@ namespace tomocam::gpu::nufft {
 
         // execute the plan — order is (NU Data, Uniform Data)
         plan.execute(cz.data(), fz.data());
+    }
+
+    // 2D Type-1 gpu::NUFFT (Non-uniform -> Uniform), broadcast over the outer
+    // ("slice") axis of cz/fz. The polar grid is identical for every slice
+    // (vertical rotation axis), so set_points() runs once and execute() runs
+    // once per slice.
+    template <typename T>
+    void nufft2d1(DeviceArray<complex_t<T>> &cz, DeviceArray<complex_t<T>> &fz,
+                  const gpu::PolarGrid2D<T> &pg) {
+
+        int gpu_id;
+        cudaGetDevice(&gpu_id);
+
+        std::array<int64_t, 3> n_modes = {(int64_t)fz.ncols(), (int64_t)fz.nrows(),
+                                          1};
+        auto &plan = plans::cache<T>.get_plan(1, 2, n_modes, 1, gpu_id);
+        plan.set_points(pg);
+
+        size_t nvox = fz.nrows() * fz.ncols();
+        for (size_t i = 0; i < fz.nslices(); ++i) {
+            plan.execute(cz.data() + i * pg.npts, fz.data() + i * nvox);
+        }
+    }
+
+    // 2D Type-2 NUFFT (GPU arrays, GPU PolarGrid2D): uniform -> nonuniform,
+    // broadcast over slices.
+    template <typename T>
+    void nufft2d2(DeviceArray<complex_t<T>> &cz, DeviceArray<complex_t<T>> &fz,
+                  const gpu::PolarGrid2D<T> &pg) {
+
+        int gpu_id;
+        cudaGetDevice(&gpu_id);
+
+        std::array<int64_t, 3> n_modes = {(int64_t)fz.ncols(), (int64_t)fz.nrows(),
+                                          1};
+        auto &plan = plans::cache<T>.get_plan(2, 2, n_modes, -1, gpu_id);
+        plan.set_points(pg);
+
+        size_t nvox = fz.nrows() * fz.ncols();
+        for (size_t i = 0; i < fz.nslices(); ++i) {
+            plan.execute(cz.data() + i * pg.npts, fz.data() + i * nvox);
+        }
     }
 
 } // namespace tomocam::gpu::nufft

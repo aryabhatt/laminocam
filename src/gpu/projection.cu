@@ -144,4 +144,56 @@ namespace tomocam::gpu {
     backward(const DeviceArray<double> &, const gpu::PolarGrid<double> &,
              const dims_t &, const std::vector<std::array<double, 2>> &);
 
+    // -------------------------------------------------------------------------
+    // 2D slice-by-slice tomography (vertical rotation axis)
+    // -------------------------------------------------------------------------
+
+    template <typename T>
+    DeviceArray<T> forward2d(const DeviceArray<T> &volume,
+                             const gpu::PolarGrid2D<T> &pg) {
+
+        T scale = static_cast<T>(pg.nradial());
+
+        auto Ft = gpu::array::to_complex(volume);
+        DeviceArray<complex<T>> C(
+            dims_t{volume.nslices(), pg.nangles(), pg.nradial()});
+
+        nufft::nufft2d2(C, Ft, pg);
+
+        C = gpu::ifftshift1(C);
+        C = gpu::fft::ifft1d(C);
+        C = gpu::fftshift1(C);
+
+        return gpu::array::to_real(C) / scale;
+    }
+    template DeviceArray<float> forward2d(const DeviceArray<float> &,
+                                          const gpu::PolarGrid2D<float> &);
+    template DeviceArray<double> forward2d(const DeviceArray<double> &,
+                                           const gpu::PolarGrid2D<double> &);
+
+    template <typename T>
+    DeviceArray<T> backproj2d(const DeviceArray<T> &sino,
+                              const gpu::PolarGrid2D<T> &pg,
+                              const dims_t &recon_dims) {
+
+        T scale = static_cast<T>(pg.nradial());
+
+        auto C = array::to_complex(sino);
+
+        C = gpu::fftshift1(C);
+        C = gpu::fft::fft1d(C);
+        C = gpu::ifftshift1(C);
+
+        DeviceArray<complex<T>> F(recon_dims);
+        nufft::nufft2d1(C, F, pg);
+
+        return array::to_real(F) / scale;
+    }
+    template DeviceArray<float> backproj2d(const DeviceArray<float> &,
+                                           const gpu::PolarGrid2D<float> &,
+                                           const dims_t &);
+    template DeviceArray<double> backproj2d(const DeviceArray<double> &,
+                                            const gpu::PolarGrid2D<double> &,
+                                            const dims_t &);
+
 } // namespace tomocam::gpu

@@ -24,7 +24,9 @@
 #include "gpu/device_array_ops.h"
 #include "gpu/nufft.h"
 #include "gpu/polar_grid.h"
+#include "gpu/polar_grid2d.h"
 #include "gpu/toeplitz.h"
+#include "gpu/toeplitz2d.h"
 
 namespace tomocam::gpu {
 
@@ -56,4 +58,33 @@ namespace tomocam::gpu {
                                        const gpu::PointSpreadFunction<float> &);
     template DeviceArray<double> sysmat(const DeviceArray<double> &,
                                         const gpu::PointSpreadFunction<double> &);
+
+    // 2D slice-by-slice normal operator (vertical rotation axis): direct NUFFT path
+    template <typename T>
+    DeviceArray<T> sysmat2d(const DeviceArray<T> &x, const gpu::PolarGrid2D<T> &grid) {
+
+        T scale = static_cast<T>(grid.nradial());
+
+        auto d_fz = gpu::array::to_complex(x);
+        auto d_cz = DeviceArray<cuda::std::complex<T>>(
+            dims_t{x.nslices(), grid.nangles(), grid.nradial()});
+        gpu::nufft::nufft2d2(d_cz, d_fz, grid);
+        gpu::nufft::nufft2d1(d_cz, d_fz, grid);
+        return gpu::array::to_real(d_fz) / scale;
+    }
+    template DeviceArray<float> sysmat2d(const DeviceArray<float> &x,
+                                         const gpu::PolarGrid2D<float> &grid);
+    template DeviceArray<double> sysmat2d(const DeviceArray<double> &x,
+                                          const gpu::PolarGrid2D<double> &grid);
+
+    // 2D slice-by-slice normal operator: Toeplitz (GPU PSF convolution) path
+    template <typename T>
+    DeviceArray<T> sysmat2d(const DeviceArray<T> &x,
+                            const gpu::PointSpreadFunction2D<T> &psf) {
+        return psf.convolve(x);
+    }
+    template DeviceArray<float> sysmat2d(const DeviceArray<float> &,
+                                         const gpu::PointSpreadFunction2D<float> &);
+    template DeviceArray<double> sysmat2d(const DeviceArray<double> &,
+                                          const gpu::PointSpreadFunction2D<double> &);
 } // namespace tomocam::gpu

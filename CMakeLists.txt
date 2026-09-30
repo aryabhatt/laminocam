@@ -45,6 +45,7 @@ if (${USE_GPU})
     src/gpu/finitediff.cu
     src/gpu/padding.cu
     src/gpu/polar_grid.cu
+    src/gpu/polar_grid2d.cu
   )
 endif()
 include_directories(${CMAKE_SOURCE_DIR}/include)
@@ -108,7 +109,13 @@ add_executable(forward_scalar src/radon.cpp)
 target_link_libraries(forward_scalar PRIVATE tomocam_scalar tomlplusplus::tomlplusplus)
 target_link_libraries(forward_scalar PRIVATE TIFF::TIFF ${HDF5_LIBRARIES})
 
+# 2D slice-by-slice (vertical rotation axis) tomography reconstruction
+add_executable(mbir2d_scalar src/mbir2d.cpp)
+target_link_libraries(mbir2d_scalar PRIVATE tomocam_scalar tomlplusplus::tomlplusplus)
+target_link_libraries(mbir2d_scalar PRIVATE TIFF::TIFF ${HDF5_LIBRARIES})
+
 install(TARGETS recon_lamino RUNTIME DESTINATION bin)
+install(TARGETS mbir2d_scalar RUNTIME DESTINATION bin)
 install(TARGETS forward_scalar RUNTIME DESTINATION bin)
 install(TARGETS tomocam_scalar LIBRARY DESTINATION lib)
 

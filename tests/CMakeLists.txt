@@ -19,6 +19,10 @@ add_executable(test_sysmat_toeplitz2d test_sysmat_toeplitz2d.cpp)
 target_link_libraries(test_sysmat_toeplitz2d PUBLIC tomocam_scalar)
 add_test(NAME sysmat_toeplitz2d COMMAND test_sysmat_toeplitz2d)
 
+add_executable(test_mbir2d_sanity test_mbir2d_sanity.cpp)
+target_link_libraries(test_mbir2d_sanity PUBLIC tomocam_scalar)
+add_test(NAME mbir2d_sanity COMMAND test_mbir2d_sanity)
+
 if (USE_GPU)
 
     add_executable(test_padding test_padding.cu)
@@ -28,6 +32,10 @@ if (USE_GPU)
     add_executable(test_proj_gpu_cpu test_proj_gpu_cpu.cu)
     target_link_libraries(test_proj_gpu_cpu PUBLIC tomocam_scalar)
     add_test(NAME proj_gpu_cpu COMMAND test_proj_gpu_cpu)
+
+    add_executable(test_proj2d_gpu_cpu test_proj2d_gpu_cpu.cu)
+    target_link_libraries(test_proj2d_gpu_cpu PUBLIC tomocam_scalar)
+    add_test(NAME proj2d_gpu_cpu COMMAND test_proj2d_gpu_cpu)
 
     add_executable(test_nufft_gpu test_nufft_gpu.cu)
     target_link_libraries(test_nufft_gpu PUBLIC tomocam_scalar)
@@ -48,6 +56,10 @@ if (USE_GPU)
     add_executable(test_sysmat_toeplitz_gpu test_sysmat_toeplitz_gpu.cu)
     target_link_libraries(test_sysmat_toeplitz_gpu PUBLIC tomocam_scalar)
     add_test(NAME sysmat_toeplitz_gpu COMMAND test_sysmat_toeplitz_gpu)
+
+    add_executable(test_sysmat_toeplitz2d_gpu test_sysmat_toeplitz2d_gpu.cu)
+    target_link_libraries(test_sysmat_toeplitz2d_gpu PUBLIC tomocam_scalar)
+    add_test(NAME sysmat_toeplitz2d_gpu COMMAND test_sysmat_toeplitz2d_gpu)
 
     add_executable(test_device_array_ops test_device_array_ops.cu)
     target_link_libraries(test_device_array_ops PUBLIC tomocam_scalar)
