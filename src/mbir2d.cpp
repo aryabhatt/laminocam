@@ -47,12 +47,56 @@
 #include "array.h"
 #include "array_ops.h"
 #include "config.h"
+#include "mbir2d_prep.h"
 #include "optimize.h"
 #include "polar_grid2d.h"
 #include "projection.h"
 #include "timer.h"
 
+#ifdef USE_GPU
+#include "gpu/cufft_plan_cache.h"
+#include "gpu/cufinufft_plan_cache.h"
+#include "gpu/tomocam.h"
+#endif
+
 using namespace tomocam;
+
+// CPU reconstruction of the prepared sinogram {n_slices, n_angles, n_cols}.
+static Array<float> cpu_mbir2d(const Array<float> &sinogram,
+                               const std::vector<float> &theta,
+                               const ReconParams &params) {
+    const dims_t recon_dims = params.recon_dims;
+    cpu::PolarGrid2D<float> pg(theta, sinogram.ncols());
+
+    std::cout << "Building 2D Toeplitz PSF ...\n";
+    cpu::PointSpreadFunction2D<float> psf(pg, recon_dims.n3);
+    opt::Function<float> A = [&psf](const Array<float> &x) {
+        return sysmat2d(x, psf);
+    };
+
+    std::cout << "Computing backprojection (right-hand side) ...\n";
+    auto rhs = backproj2d(sinogram, pg, recon_dims);
+
+    auto x0 = Array<float>::zeros(recon_dims);
+    Array<float> recon;
+    switch (params.regularizer) {
+        case Regularizer::UNCONSTRAINED: {
+            std::cout << "Starting unconstrained reconstruction with CG ...\n";
+            recon = opt::cgsolver<float>(A, rhs, x0, params.maxIters, params.tol,
+                                         params.xtol);
+            break;
+        }
+        case Regularizer::SPLIT_BREGMAN: {
+            std::cout << "Starting MBIR with Split-Bregman method ...\n";
+            recon = opt::split_bregman<float>(A, rhs, x0, params.lambda, params.mu,
+                                              params.maxIters, params.innerIters,
+                                              params.tol, params.xtol);
+            break;
+        }
+        default: throw std::invalid_argument("Unsupported optimizer type");
+    }
+    return recon;
+}
 
 int main(int argc, char **argv) {
 
@@ -107,51 +151,14 @@ int main(int argc, char **argv) {
         }
     }
 
-    // Stack all datasets' projections and angles (mirrors the stacking
-    // block in src/mbir.cpp's MBIR()).
-    size_t n_projs = 0;
-    for (auto &ds : datasets) n_projs += ds.angles.size();
-    dims_t proj_dims = datasets[0].projs.dims();
-    proj_dims.n1 = n_projs;
+    auto [sinogram, theta] = prepare_sinogram(datasets);
 
-    std::vector<float> theta;
-    theta.reserve(n_projs);
-    Array<float> stacked_projs(proj_dims);
-    {
-        size_t offset = 0;
-        for (auto &ds : datasets) {
-            std::copy(ds.projs.data(), ds.projs.data() + ds.projs.size(),
-                      stacked_projs.data() + offset);
-            offset += ds.projs.size();
-            for (auto &a : ds.angles) theta.push_back(a);
-        }
-    }
-    float max_val = array::max(stacked_projs);
-    if (max_val > 0) { stacked_projs /= max_val; }
-
-    if (recon_dims.n1 != stacked_projs.nrows()) {
+    if (recon_dims.n1 != sinogram.nslices()) {
         std::cerr << std::format(
             "Warning: recon_dims[0]={} does not match the input data's row "
             "count ({}); reconstructing {} slices from {}-row projections.\n",
-            recon_dims.n1, stacked_projs.nrows(), recon_dims.n1,
-            stacked_projs.nrows());
+            recon_dims.n1, sinogram.nslices(), recon_dims.n1, sinogram.nslices());
     }
-
-    // Input data is {n_angles, n_rows, n_cols}; forward2d/backproj2d expect
-    // a sinogram shaped {n_slices, n_angles, n_cols} -- swap the first two
-    // axes (n_rows becomes the leading n_slices axis).
-    auto sinogram = array::transpose(stacked_projs, {1, 0, 2});
-
-    cpu::PolarGrid2D<float> pg(theta, sinogram.ncols());
-
-    std::cout << "Building 2D Toeplitz PSF ...\n";
-    cpu::PointSpreadFunction2D<float> psf(pg, recon_dims.n3);
-    opt::Function<float> A = [&psf](const Array<float> &x) {
-        return sysmat2d(x, psf);
-    };
-
-    std::cout << "Computing backprojection (right-hand side) ...\n";
-    auto rhs = backproj2d(sinogram, pg, recon_dims);
 
     params.print(std::cout);
     std::cout << std::endl;
@@ -159,24 +166,24 @@ int main(int argc, char **argv) {
     tomocam::Timer t0;
     t0.start();
 
-    auto x0 = Array<float>::zeros(recon_dims);
     Array<float> recon;
-    switch (params.regularizer) {
-        case Regularizer::UNCONSTRAINED: {
-            std::cout << "Starting unconstrained reconstruction with CG ...\n";
-            recon = opt::cgsolver<float>(A, rhs, x0, params.maxIters, params.tol,
-                                         params.xtol);
-            break;
-        }
-        case Regularizer::SPLIT_BREGMAN: {
-            std::cout << "Starting MBIR with Split-Bregman method ...\n";
-            recon = opt::split_bregman<float>(A, rhs, x0, params.lambda, params.mu,
-                                              params.maxIters, params.innerIters,
-                                              params.tol, params.xtol);
-            break;
-        }
-        default: throw std::invalid_argument("Unsupported optimizer type");
+#ifdef USE_GPU
+    try {
+        std::cout << "Running reconstruction on GPU...\n";
+        recon = tomocam::gpu::MBIR2D<float>(sinogram, theta, params);
+    } catch (const std::exception &e) {
+        std::cerr << std::format(
+            "GPU reconstruction failed ({}); falling back to CPU\n", e.what());
+        cudaGetLastError(); // reset any sticky CUDA error state
+        recon = cpu_mbir2d(sinogram, theta, params);
     }
+    tomocam::gpu::nufft::plans::cache<float>.clear();
+    tomocam::gpu::fft::cache::plans<float>.clear();
+    cudaDeviceReset();
+#else
+    std::cout << "Running reconstruction on CPU...\n";
+    recon = cpu_mbir2d(sinogram, theta, params);
+#endif
     t0.stop();
     std::cout << std::format("Reconstruction completed in {:.2f} seconds.\n",
                              t0.seconds());

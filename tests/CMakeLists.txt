@@ -37,6 +37,10 @@ if (USE_GPU)
     target_link_libraries(test_proj2d_gpu_cpu PUBLIC tomocam_scalar)
     add_test(NAME proj2d_gpu_cpu COMMAND test_proj2d_gpu_cpu)
 
+    add_executable(test_mbir2d_gpu_cpu test_mbir2d_gpu_cpu.cu)
+    target_link_libraries(test_mbir2d_gpu_cpu PUBLIC tomocam_scalar)
+    add_test(NAME mbir2d_gpu_cpu COMMAND test_mbir2d_gpu_cpu)
+
     add_executable(test_nufft_gpu test_nufft_gpu.cu)
     target_link_libraries(test_nufft_gpu PUBLIC tomocam_scalar)
     add_test(NAME nufft_gpu COMMAND test_nufft_gpu)

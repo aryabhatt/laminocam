@@ -61,6 +61,19 @@ namespace tomocam::gpu {
     Array<T> MBIR(const std::vector<Dataset_t<T>> &datasets,
                   const ReconParams &params);
 
+    /**
+     * 2D slice-by-slice tomography (vertical rotation axis) on the GPU.
+     *
+     * @param sinogram Host sinogram with shape (n_slices, n_angles, n_cols),
+     *                 as produced by prepare_sinogram().
+     * @param theta    Projection angles in radians, one per angle.
+     * @param params   Reconstruction parameters; recon_dims is used as given.
+     * @return         Reconstructed volume (recon_dims) as a host array.
+     */
+    template <typename T>
+    Array<T> MBIR2D(const Array<T> &sinogram, const std::vector<T> &theta,
+                    const ReconParams &params);
+
 } // namespace tomocam::gpu
 
 #endif // TOMOCAM_GPU_H

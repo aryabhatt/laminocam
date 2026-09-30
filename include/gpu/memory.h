@@ -20,6 +20,7 @@
 #ifndef GPUMEMORY__H
 #define GPUMEMORY__H
 
+#include <format>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -52,8 +53,9 @@ namespace tomocam::gpu {
             T *raw = nullptr;
             auto err = cudaMalloc(&raw, sizeof(T) * count);
             if (err != cudaSuccess) {
-                throw std::runtime_error(
-                    std::string("failed to allocated gpu memory"));
+                throw std::runtime_error(std::format(
+                    "failed to allocate {:.1f} MiB of gpu memory: {}",
+                    sizeof(T) * count / 1048576.0, cudaGetErrorString(err)));
             }
             return cunique_ptr<T>(raw);
         }

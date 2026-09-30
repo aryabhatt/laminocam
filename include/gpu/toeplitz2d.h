@@ -21,6 +21,7 @@
 #ifndef GPU_TOEPLITZ2D_H
 #define GPU_TOEPLITZ2D_H
 
+#include <algorithm>
 #include <array>
 #include <cuda/std/complex>
 #include <thrust/execution_policy.h>
@@ -47,6 +48,7 @@ namespace tomocam::gpu {
         using complex_t = cuda::std::complex<T>;
         size_t psf_n_;
         DeviceArray<complex_t> kernel_hat_; // one 2D kernel: {1, psf_n_, psf_n_/2+1}
+        size_t max_chunk_ = 0; // 0: pick the slab size from free device memory
 
         static size_t next_fast_dim(size_t n) {
             size_t best = 1;
@@ -64,8 +66,9 @@ namespace tomocam::gpu {
             size_t slice_sz = data.nrows() * data.ncols();
             for (size_t i = 0; i < data.nslices(); ++i) {
                 auto *p = data.data() + i * slice_sz;
-                thrust::transform(thrust::device, p, p + slice_sz, kernel_hat_.data(),
-                                  p, thrust::multiplies<complex_t>());
+                thrust::transform(thrust::device, p, p + slice_sz,
+                                  kernel_hat_.data(), p,
+                                  thrust::multiplies<complex_t>());
             }
         }
 
@@ -100,7 +103,45 @@ namespace tomocam::gpu {
             kernel_hat_ = gpu::fft::rfft2d(kernel_real);
         }
 
+        // Cap the number of slices convolved at once (0 = automatic). Mainly
+        // for tests that need to exercise the multi-slab path on small inputs.
+        void set_max_chunk(size_t n) { max_chunk_ = n; }
+
+        // Slices are independent, so the volume is convolved in slabs of
+        // `chunk` slices to bound the padded-FFT working set.
         DeviceArray<T> convolve(const DeviceArray<T> &input) const {
+            const dims_t dims = input.dims();
+            const size_t chunk = slab_size(dims.n1);
+            if (chunk >= dims.n1) return convolve_chunk(input);
+
+            DeviceArray<T> output(dims);
+            const size_t plane = dims.n2 * dims.n3;
+            for (size_t s = 0; s < dims.n1; s += chunk) {
+                const size_t nb = std::min(chunk, dims.n1 - s);
+                DeviceArray<T> slab(dims_t{nb, dims.n2, dims.n3});
+                copyD2D(slab.data(), input.data() + s * plane,
+                        nb * plane * sizeof(T));
+                auto res = convolve_chunk(slab);
+                copyD2D(output.data() + s * plane, res.data(),
+                        nb * plane * sizeof(T));
+            }
+            return output;
+        }
+
+      private:
+        // number of slices per slab: padded real + complex spectrum + result +
+        // cuFFT workspace is roughly 4 * psf_n_^2 elements per slice; use at
+        // most half of the free device memory.
+        size_t slab_size(size_t nslices) const {
+            if (max_chunk_ > 0) return std::min(max_chunk_, nslices);
+            size_t free_b = 0, total_b = 0;
+            SAFE_CALL(cudaMemGetInfo(&free_b, &total_b));
+            const size_t per_slice = 4 * psf_n_ * psf_n_ * sizeof(T);
+            const size_t fit = std::max<size_t>(1, (free_b / 2) / per_slice);
+            return std::min(fit, nslices);
+        }
+
+        DeviceArray<T> convolve_chunk(const DeviceArray<T> &input) const {
             auto orig_dims = input.dims();
 
             // zero-pad every slice to match the PSF size

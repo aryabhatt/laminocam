@@ -40,6 +40,7 @@ if (${USE_GPU})
     src/gpu/conjgrad.cu
     src/gpu/gradient.cu
     src/gpu/mbir.cu
+    src/gpu/mbir2d.cu
     src/gpu/projection.cu
     src/gpu/fftshift.cu
     src/gpu/finitediff.cu
