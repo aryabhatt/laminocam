@@ -28,7 +28,6 @@
 #include "array.h"
 #include "array_ops.h"
 #include "optimize.h"
-#include "precond.h"
 
 namespace tomocam::opt {
     template <typename T>
