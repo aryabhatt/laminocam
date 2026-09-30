@@ -4,18 +4,29 @@ cmake_minimum_required(VERSION 3.20)
 project(Testbed CXX)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
+# C++ std
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # Add cuda
 option(USE_GPU "Use GPU Acceleration" TRUE)
 if (${USE_GPU})
   add_definitions(-DUSE_GPU)
   enable_language(CUDA)
   find_package(CUDAToolkit REQUIRED)
+  # CUDA >= 13 ships Thrust/CUB/libcu++ under include/cccl; nvcc adds it
+  # implicitly but host compilers (g++) need it explicitly.
+  foreach(dir ${CUDAToolkit_INCLUDE_DIRS})
+    if(EXISTS "${dir}/cccl")
+      include_directories(SYSTEM "${dir}/cccl")
+    endif()
+  endforeach()
+  set(CMAKE_CUDA_STANDARD 20)
+  set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+  include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+  set(CMAKE_CUDA_ARCHITECTURES "native")
   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --extended-lambda")
 endif()
-
-# C++ std
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_definitions(-DDEBUG)
@@ -60,8 +71,18 @@ endif(OpenMP_FOUND)
 find_package(TBB REQUIRED)
 find_package(FFTW REQUIRED)
 find_package(TIFF REQUIRED)
-find_package(HDF5 REQUIRED)
-include_directories(${HDF5_C_INCLUDE_DIR})
+find_package(HDF5 REQUIRED COMPONENTS C)
+# Cray's h5cc wraps the `cc` driver, which injects -I itself, so FindHDF5
+# gets no include dirs from `h5cc -show`. Locate hdf5.h explicitly.
+if(NOT HDF5_INCLUDE_DIRS)
+  find_path(HDF5_C_INCLUDE_DIR hdf5.h
+            HINTS ${HDF5_ROOT} $ENV{HDF5_ROOT} $ENV{HDF5_DIR} $ENV{CRAY_HDF5_PREFIX}
+            PATH_SUFFIXES include REQUIRED)
+  set(HDF5_INCLUDE_DIRS ${HDF5_C_INCLUDE_DIR})
+  set_property(TARGET HDF5::HDF5 APPEND PROPERTY
+               INTERFACE_INCLUDE_DIRECTORIES ${HDF5_C_INCLUDE_DIR})
+endif()
+include_directories(${HDF5_INCLUDE_DIRS})
 
 # toml++
 include(FetchContent)
@@ -81,6 +102,7 @@ target_link_libraries(tomocam_scalar PUBLIC FFTW::double)
 target_link_libraries(tomocam_scalar PUBLIC FFTW::float)
 target_link_libraries(tomocam_scalar PUBLIC finufft::finufft)
 target_link_libraries(tomocam_scalar PUBLIC TBB::tbb)
+target_link_libraries(tomocam_scalar INTERFACE HDF5::HDF5)
 if (${USE_GPU})
   target_link_libraries(tomocam_scalar PUBLIC finufft::cufinufft)
   target_link_libraries(tomocam_scalar PUBLIC CUDA::cufft)
@@ -103,17 +125,19 @@ target_include_directories(tomocam_scalar PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/gen
 # recon executable
 add_executable(recon_lamino src/recon.cpp)
 target_link_libraries(recon_lamino PRIVATE tomocam_scalar tomlplusplus::tomlplusplus)
-target_link_libraries(recon_lamino PRIVATE TIFF::TIFF ${HDF5_LIBRARIES})
+target_link_libraries(recon_lamino PRIVATE TIFF::TIFF)
+target_link_libraries(recon_lamino PRIVATE HDF5::HDF5)
 
 # forward projection executable
 add_executable(forward_scalar src/radon.cpp)
 target_link_libraries(forward_scalar PRIVATE tomocam_scalar tomlplusplus::tomlplusplus)
-target_link_libraries(forward_scalar PRIVATE TIFF::TIFF ${HDF5_LIBRARIES})
+target_link_libraries(forward_scalar PRIVATE TIFF::TIFF HDF5::HDF5)
 
 # 2D slice-by-slice (vertical rotation axis) tomography reconstruction
 add_executable(recon_tomo src/mbir2d.cpp)
 target_link_libraries(recon_tomo PRIVATE tomocam_scalar tomlplusplus::tomlplusplus)
-target_link_libraries(recon_tomo PRIVATE TIFF::TIFF ${HDF5_LIBRARIES})
+target_link_libraries(recon_tomo PRIVATE TIFF::TIFF)
+target_link_libraries(recon_tomo PRIVATE HDF5::HDF5)
 
 install(TARGETS recon_lamino RUNTIME DESTINATION bin)
 install(TARGETS recon_tomo RUNTIME DESTINATION bin)
