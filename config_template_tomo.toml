@@ -1,0 +1,33 @@
+# Slice-by-slice tomography, vertical rotation axis.
+# Run: ./mbir2d_scalar config.toml
+
+[[input]]
+filename = "/path/to/projections.h5"    # .tiff/.tif or .h5/.hdf5
+# TIFF only: text file, one angle per line
+# angles = "/path/to/angles.txt"
+# HDF5 only (both optional):
+# projs_dataset = "/images"              # default
+# angles = "/coords/alpha"               # default, angles dataset name
+angle_units = "deg"                      # "deg" (default) or "rad"
+# gamma and beta must be 0 for tomography and are rejected otherwise.
+
+[output]
+filename = "recon2d.tiff"
+formats = ["tiff"]                       # available: "tiff", "vti"
+
+[recon_params]
+max_iters = 50
+tol = 1e-5
+xtol = 1e-5
+# Sizes are (slices, y, x). recon_dims[0] should match the detector row count.
+# The in-plane size must be square. Even values are reduced to the next odd number.
+recon_dims = [745, 745, 745]
+
+# Omit [recon_params.regularizer] for unconstrained least squares.
+[recon_params.regularizer]
+method = "split_bregman"
+
+[recon_params.regularizer.split_bregman]
+lambda = 0.1
+mu = 10.0
+inner_iters = 1

@@ -70,4 +70,4 @@ VOLUME ["/data/input", "/data/output"]
 
 WORKDIR /data
 
-ENTRYPOINT ["recon_scalar"]
+ENTRYPOINT ["recon_lamino"]

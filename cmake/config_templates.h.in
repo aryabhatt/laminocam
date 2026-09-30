@@ -1,0 +1,10 @@
+// Generated from config_template_*.toml by CMake. Do not edit.
+#ifndef CONFIG_TEMPLATES_H
+#define CONFIG_TEMPLATES_H
+
+namespace tomocam {
+    inline constexpr const char *LAMINO_CONFIG_TEMPLATE = R"TOML(@LAMINO_TEMPLATE@)TOML";
+    inline constexpr const char *TOMO_CONFIG_TEMPLATE = R"TOML(@TOMO_TEMPLATE@)TOML";
+} // namespace tomocam
+
+#endif // CONFIG_TEMPLATES_H

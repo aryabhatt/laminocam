@@ -34,6 +34,7 @@
 #include <vector>
 
 #include "array.h"
+#include "config_templates.h"
 #include "hdfread.h"
 #include "mask.h"
 #include "recon_params.h"
@@ -56,9 +57,55 @@ namespace tomocam {
         }
     }
 
-    // Function to read angles from a text file
+    // Resolve a path from the config: relative paths are taken relative to the
+    // config file's directory, falling back to the current directory.
+    inline std::string resolve_path(const std::string &p,
+                                    const std::filesystem::path &base_dir) {
+        std::filesystem::path fp(p);
+        if (fp.is_relative() && !base_dir.empty()) {
+            auto candidate = base_dir / fp;
+            if (std::filesystem::exists(candidate)) return candidate.string();
+        }
+        return p;
+    }
+
+    // Warn about keys in a table that are not in the allowed list.
+    inline void warn_unknown_keys(const toml::table &tbl,
+                                  std::initializer_list<const char *> allowed,
+                                  const std::string &section) {
+        for (auto &&[key, val] : tbl) {
+            bool known = false;
+            for (auto *a : allowed) {
+                if (key.str() == a) {
+                    known = true;
+                    break;
+                }
+            }
+            if (!known) {
+                std::cerr << std::format(
+                    "\033[33mWarning\033[0m: unknown key '{}' in {} (ignored)\n",
+                    std::string(key.str()), section);
+            }
+        }
+    }
+
+    // Convert angles to radians according to "deg" or "rad".
     template <typename T>
-    inline std::vector<T> read_angles_file(const std::string &filepath) {
+    inline void angles_to_radians(std::vector<T> &angles, const std::string &units) {
+        if (units == "deg") {
+            for (auto &a : angles) a = a * T(M_PI) / T(180);
+        } else if (units != "rad") {
+            throw std::runtime_error(std::format(
+                "[[input]] 'angle_units' must be \"deg\" or \"rad\", got '{}'",
+                units));
+        }
+    }
+
+    // Function to read angles from a text file (values in the given units,
+    // returned in radians)
+    template <typename T>
+    inline std::vector<T> read_angles_file(const std::string &filepath,
+                                           const std::string &units = "deg") {
         std::ifstream fp(filepath);
         if (!fp.is_open()) {
             throw std::runtime_error(
@@ -72,18 +119,15 @@ namespace tomocam {
             throw std::runtime_error(
                 std::format("No angles found in file: {}", filepath));
         }
-
-        // Convert to radians if necessary
-        auto max_angle = *std::max_element(angles.begin(), angles.end());
-        if (std::abs(max_angle) > 2 * M_PI) {
-            for (auto &a : angles) { a = a * M_PI / (T)180.0; }
-        }
+        angles_to_radians(angles, units);
         return angles;
     }
 
-    // Read per-projection shifts from a two-column text file (dx dy per line, pixels).
+    // Read per-projection shifts from a two-column text file (dx dy per line,
+    // pixels).
     template <typename T>
-    inline std::vector<std::array<T, 2>> read_shifts_file(const std::string &filepath) {
+    inline std::vector<std::array<T, 2>>
+    read_shifts_file(const std::string &filepath) {
         std::ifstream fp(filepath);
         if (!fp.is_open()) {
             throw std::runtime_error(
@@ -121,7 +165,8 @@ namespace tomocam {
     // Function to parse input datasets from TOML config
     template <typename T>
     [[nodiscard]] std::vector<Dataset_t<T>>
-    parse_input_datasets(const toml::table &config) {
+    parse_input_datasets(const toml::table &config,
+                         const std::filesystem::path &base_dir = {}) {
 
         auto input_array = config["input"].as_array();
         if (!input_array) {
@@ -141,10 +186,17 @@ namespace tomocam {
                 throw std::runtime_error(
                     "[[input]] entry must have a 'filename' field");
             }
+            warn_unknown_keys(*input_table,
+                              {"filename", "angles", "angle_units", "gamma", "beta",
+                               "shifts", "cor-offset", "alignment", "projs_dataset"},
+                              "[[input]]");
             auto filename = (*input_table)["filename"].value<std::string>();
             if (!filename.has_value()) {
                 throw std::runtime_error("[[input]] 'filename' must be a string");
             }
+            *filename = resolve_path(*filename, base_dir);
+            auto angle_units =
+                (*input_table)["angle_units"].value_or<std::string>("deg");
             // check if file exists
             if (!std::filesystem::exists(*filename)) {
                 throw std::runtime_error(
@@ -152,7 +204,7 @@ namespace tomocam {
             }
             // gamma and beta default to 0; overwritten by alignment block if present
             T gamma_rad = -(*input_table)["gamma"].value_or<T>(0) * T(M_PI) / T(180);
-            T beta_rad  =  (*input_table)["beta"].value_or<T>(0)  * T(M_PI) / T(180);
+            T beta_rad = (*input_table)["beta"].value_or<T>(0) * T(M_PI) / T(180);
 
             // Build per-projection shifts vector.
             // 'shifts' (path to a two-column file) takes priority over the legacy
@@ -163,10 +215,11 @@ namespace tomocam {
                 if (!shifts_path.has_value())
                     throw std::runtime_error(
                         "[[input]] 'shifts' must be a string path");
-                auto resolved = std::filesystem::path(*shifts_path);
+                auto resolved =
+                    std::filesystem::path(resolve_path(*shifts_path, base_dir));
                 if (!std::filesystem::exists(resolved))
-                    throw std::runtime_error(
-                        std::format("Shifts file does not exist: {}", resolved.string()));
+                    throw std::runtime_error(std::format(
+                        "Shifts file does not exist: {}", resolved.string()));
                 per_proj_shifts = read_shifts_file<T>(resolved.string());
             } else if (input_table->contains("cor-offset")) {
                 auto offsets_array = (*input_table)["cor-offset"].as_array();
@@ -184,15 +237,8 @@ namespace tomocam {
                     buf[i] = *val;
                 }
                 // broadcast to all projections after we know N (filled below)
-                per_proj_shifts = {buf};  // sentinel: one element means broadcast
+                per_proj_shifts = {buf}; // sentinel: one element means broadcast
             }
-
-            // deg→rad conversion applied to any angles vector
-            auto to_radians = [](std::vector<T> &a) {
-                auto mx = *std::max_element(a.begin(), a.end());
-                if (std::abs(mx) > 2 * M_PI)
-                    for (auto &v : a) v = v * M_PI / T(180);
-            };
 
             // dispatch on filename extension
             auto ext = std::filesystem::path(*filename).extension().string();
@@ -206,18 +252,21 @@ namespace tomocam {
                 if (!angles_path.has_value())
                     throw std::runtime_error(
                         "[[input]] 'angles' is required for TIFF files");
+                *angles_path = resolve_path(*angles_path, base_dir);
                 if (!std::filesystem::exists(*angles_path))
                     throw std::runtime_error(
                         std::format("Angles file does not exist: {}", *angles_path));
                 projs = tomocam::tiff::read(*filename);
-                angles = read_angles_file<T>(*angles_path);
+                angles = read_angles_file<T>(*angles_path, angle_units);
             } else if (ext == ".h5" || ext == ".hdf5") {
                 auto angles_ds =
                     (*input_table)["angles"].value_or<std::string>("/coords/alpha");
-                projs = tomocam::h5::read_images(*filename);
+                auto projs_ds =
+                    (*input_table)["projs_dataset"].value_or<std::string>("/images");
+                projs = tomocam::h5::read_images(*filename, projs_ds);
                 auto raw = tomocam::h5::read_angles(*filename, angles_ds);
                 angles.assign(raw.begin(), raw.end());
-                to_radians(angles);
+                angles_to_radians(angles, angle_units);
             } else {
                 throw std::runtime_error(std::format(
                     "Unsupported file extension '{}': {}", ext, *filename));
@@ -243,6 +292,7 @@ namespace tomocam {
                 if (!align_path.has_value())
                     throw std::runtime_error(
                         "[[input]] 'alignment' must be a string path");
+                *align_path = resolve_path(*align_path, base_dir);
                 if (!std::filesystem::exists(*align_path))
                     throw std::runtime_error(std::format(
                         "Alignment file does not exist: {}", *align_path));
@@ -269,7 +319,8 @@ namespace tomocam {
                         auto *pair = elem.as_array();
                         if (!pair || pair->size() < 2)
                             throw std::runtime_error(
-                                "Alignment TOML 'shifts_px' entries must be [dx, dy] pairs");
+                                "Alignment TOML 'shifts_px' entries must be [dx, "
+                                "dy] pairs");
                         T dx = (*pair)[0].value<T>().value();
                         T dy = (*pair)[1].value<T>().value();
                         per_proj_shifts.push_back({dx, dy});
@@ -277,15 +328,14 @@ namespace tomocam {
                 }
 
                 if (per_proj_shifts.size() != angles.size())
-                    throw std::runtime_error(std::format(
-                        "Alignment TOML: shifts_px has {} entries but "
-                        "corrected_angles_deg has {}",
-                        per_proj_shifts.size(), angles.size()));
+                    throw std::runtime_error(
+                        std::format("Alignment TOML: shifts_px has {} entries but "
+                                    "corrected_angles_deg has {}",
+                                    per_proj_shifts.size(), angles.size()));
             }
 
-            datasets.push_back(
-                {std::move(projs), std::move(angles), gamma_rad, beta_rad,
-                 std::move(per_proj_shifts)});
+            datasets.push_back({std::move(projs), std::move(angles), gamma_rad,
+                                beta_rad, std::move(per_proj_shifts)});
         }
         return datasets;
     }
@@ -299,6 +349,9 @@ namespace tomocam {
             throw std::runtime_error(
                 "Missing [recon_params] section in config file");
         }
+        warn_unknown_keys(*recon,
+                          {"max_iters", "tol", "xtol", "recon_dims", "regularizer"},
+                          "[recon_params]");
         p.maxIters = (*recon)["max_iters"].value_or<size_t>(50);
 
         const auto *dims = (*recon)["recon_dims"].as_array();
@@ -318,6 +371,40 @@ namespace tomocam {
             throw std::runtime_error("[recon_params] 'recon_dims' must be an "
                                      "array of three integers");
         }
+        p.tol = (*recon)["tol"].value_or<float>(1e-5f);
+        p.xtol = (*recon)["xtol"].value_or<float>(1e-5f);
+        if (recon->contains("regularizer")) {
+            auto reg = (*recon)["regularizer"].as_table();
+            if (reg) {
+                warn_unknown_keys(*reg, {"method", "split_bregman"},
+                                  "[recon_params.regularizer]");
+                auto reg_str =
+                    (*reg)["method"].value_or<std::string>("split_bregman");
+                if (reg_str == "split_bregman") {
+                    p.regularizer = Regularizer::SPLIT_BREGMAN;
+                    auto params = (*reg)["split_bregman"].as_table();
+                    if (!params) {
+                        throw std::runtime_error(
+                            "Missing [recon_params.regularizer.split_bregman] "
+                            "section in config file");
+                    }
+                    warn_unknown_keys(*params, {"lambda", "mu", "inner_iters"},
+                                      "[recon_params.regularizer.split_bregman]");
+                    p.lambda = (*params)["lambda"].value_or<float>(0.1f);
+                    p.mu = (*params)["mu"].value_or<float>(10.0f);
+                    p.innerIters = (*params)["inner_iters"].value_or<size_t>(1);
+                } else {
+                    throw std::runtime_error(
+                        "[recon_params] 'regularizer' must be 'split_bregman'");
+                }
+            }
+        }
+        return p;
+    };
+
+    // Laminography-only check: the sample thickness (recon_dims[0]) is expected
+    // to be much smaller than the in-plane dimensions.
+    inline void warn_laminography_dims(const ReconParams &p) {
         float ratio = static_cast<float>(p.recon_dims[0]) /
                       static_cast<float>(p.recon_dims[2]);
         if (ratio > 0.15f) {
@@ -329,32 +416,7 @@ namespace tomocam {
                 "dimensions (recon_dims[1], recon_dims[2]).\n",
                 ratio);
         }
-        p.tol = (*recon)["tol"].value_or<float>(1e-5f);
-        p.xtol = (*recon)["xtol"].value_or<float>(1e-5f);
-        if (recon->contains("regularizer")) {
-            auto reg = (*recon)["regularizer"].as_table();
-            if (reg) {
-                auto reg_str =
-                    (*reg)["method"].value_or<std::string>("split_bregman");
-                if (reg_str == "split_bregman") {
-                    p.regularizer = Regularizer::SPLIT_BREGMAN;
-                    auto params = (*reg)["split_bregman"].as_table();
-                    if (!params) {
-                        throw std::runtime_error(
-                            "Missing [recon_params.regularizer.split_bregman] "
-                            "section in config file");
-                    }
-                    p.lambda = (*params)["lambda"].value_or<float>(0.1f);
-                    p.mu = (*params)["mu"].value_or<float>(10.0f);
-                    p.innerIters = (*params)["inner_iters"].value_or<size_t>(3);
-                } else {
-                    throw std::runtime_error(
-                        "[recon_params] 'regularizer' must be 'split_bregman'");
-                }
-            }
-        }
-        return p;
-    };
+    }
 
     // Output parameters
     inline OutputParams parse_output_params(const toml::table &config) {
@@ -365,6 +427,8 @@ namespace tomocam {
         if (!output) {
             throw std::runtime_error("Missing [output] section in config file");
         }
+        if (auto *out_tbl = output.as_table())
+            warn_unknown_keys(*out_tbl, {"filename", "formats"}, "[output]");
         params.filepath = output["filename"].value_or<std::string>("./recon.tiff");
 
         // Read formats array
@@ -400,49 +464,15 @@ namespace tomocam {
         return params;
     }
 
-    // Function to dump an example configuration file
-    inline void dump_config(const std::string &filepath = "config.toml") {
+    // Write an example configuration file from the template embedded at build
+    // time (config_template_lamino.toml or config_template_tomo.toml).
+    inline void dump_config(const char *tmpl, const std::string &filepath) {
         std::ofstream outfile(filepath);
         if (!outfile.is_open()) {
             throw std::runtime_error(
                 std::format("Could not open file for writing: {}", filepath));
         }
-
-        outfile << "[[input]]\n";
-        outfile << "filename = \"/path/to/projections.tiff\"\n";
-        outfile << "angles = \"/path/to/angles.txt\"\n";
-        outfile << "gamma = 0\n";
-        outfile << "\n";
-        outfile << "# add more [[input]] sections for additional datasets\n";
-        outfile << "# [[input]]\n";
-        outfile << "# filename = \"/path/to/projections2.tiff\"\n";
-        outfile << "# angles = \"/path/to/angles.txt\"\n";
-        outfile << "# gamma = 45\n";
-        outfile << "\n";
-        outfile << "# HDF5 alternative (angles read from /coords/alpha inside the "
-                   "file):\n";
-        outfile << "# [[input]]\n";
-        outfile << "# filename = \"/path/to/projections.h5\"\n";
-        outfile << "# gamma = 0\n";
-        outfile << "\n";
-        outfile << "[output]\n";
-        outfile << "filename = \"output.tiff\"\n";
-        outfile << "formats = [\"tiff\", \"vti\"]  # available: \"tiff\", \"vti\"\n";
-        outfile << "\n";
-        outfile << "[recon_params]\n";
-        outfile << "max_iters = 50\n";
-        outfile << "tol = 1e-5\n";
-        outfile << "xtol = 1e-5\n";
-        outfile << "recon_dims = [51, 511, 511]\n";
-        outfile << "\n";
-        outfile << "[recon_params.regularizer]\n";
-        outfile << "method = \"split_bregman\"\n";
-        outfile << "\n";
-        outfile << "[recon_params.regularizer.split_bregman]\n";
-        outfile << "lambda = 0.1\n";
-        outfile << "mu = 10.0\n";
-        outfile << "\n";
-        outfile.close();
+        outfile << tmpl;
     }
 } // namespace tomocam
 #endif // CONFIG_H

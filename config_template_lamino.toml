@@ -1,0 +1,40 @@
+# Laminography reconstruction. Run: ./recon_lamino config.toml
+
+[[input]]
+filename = "/path/to/projections.tiff"   # .tiff/.tif or .h5/.hdf5
+angles = "/path/to/angles.txt"           # TIFF: text file, one angle per line
+angle_units = "deg"                      # "deg" (default) or "rad"
+gamma = 0                                # laminography tilt, degrees
+# beta = 0                               # optional second tilt, degrees
+# shifts = "/path/to/shifts.txt"         # optional, per-projection "dx dy" (pixels)
+# alignment = "/path/to/alignment.toml"  # optional; overrides angles, shifts, gamma, beta
+
+# HDF5 input: 'angles' is a dataset name; projs_dataset and angles are optional
+# [[input]]
+# filename = "/path/to/projections.h5"
+# projs_dataset = "/images"              # default
+# angles = "/coords/alpha"               # default
+# gamma = 45
+
+# Add more [[input]] entries for additional datasets (e.g. different tilts).
+
+[output]
+filename = "output.tiff"
+formats = ["tiff", "vti"]                # available: "tiff", "vti"
+
+[recon_params]
+max_iters = 50
+tol = 1e-5
+xtol = 1e-5
+# Sizes are (thickness, y, x). Even values are reduced to the next odd number.
+# Thickness is expected to be much smaller than the in-plane size.
+recon_dims = [51, 511, 511]
+
+# Omit [recon_params.regularizer] for unconstrained least squares.
+[recon_params.regularizer]
+method = "split_bregman"
+
+[recon_params.regularizer.split_bregman]
+lambda = 0.1
+mu = 10.0
+inner_iters = 1

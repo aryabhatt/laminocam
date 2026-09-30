@@ -87,17 +87,28 @@ if (${USE_GPU})
 endif()
 set_property(TARGET tomocam_scalar PROPERTY CXX_STANDARD 20)
 
+# example config templates, embedded into config_templates.h
+set(LAMINO_TEMPLATE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/config_template_lamino.toml)
+set(TOMO_TEMPLATE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/config_template_tomo.toml)
+file(READ ${LAMINO_TEMPLATE_FILE} LAMINO_TEMPLATE)
+file(READ ${TOMO_TEMPLATE_FILE} TOMO_TEMPLATE)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/config_templates.h.in
+               ${CMAKE_CURRENT_BINARY_DIR}/generated/config_templates.h @ONLY)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+             ${LAMINO_TEMPLATE_FILE} ${TOMO_TEMPLATE_FILE})
+target_include_directories(tomocam_scalar PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/generated)
+
 # recon executable
-add_executable(recon_scalar src/recon.cpp)
-target_link_libraries(recon_scalar PRIVATE tomocam_scalar tomlplusplus::tomlplusplus)
-target_link_libraries(recon_scalar PRIVATE TIFF::TIFF ${HDF5_LIBRARIES})
+add_executable(recon_lamino src/recon.cpp)
+target_link_libraries(recon_lamino PRIVATE tomocam_scalar tomlplusplus::tomlplusplus)
+target_link_libraries(recon_lamino PRIVATE TIFF::TIFF ${HDF5_LIBRARIES})
 
 # forward projection executable
 add_executable(forward_scalar src/radon.cpp)
 target_link_libraries(forward_scalar PRIVATE tomocam_scalar tomlplusplus::tomlplusplus)
 target_link_libraries(forward_scalar PRIVATE TIFF::TIFF ${HDF5_LIBRARIES})
 
-install(TARGETS recon_scalar RUNTIME DESTINATION bin)
+install(TARGETS recon_lamino RUNTIME DESTINATION bin)
 install(TARGETS forward_scalar RUNTIME DESTINATION bin)
 install(TARGETS tomocam_scalar LIBRARY DESTINATION lib)
 

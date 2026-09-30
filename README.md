@@ -63,7 +63,7 @@ cmake --build --preset macos
 The reconstruction tool uses a TOML configuration file to specify input data and parameters:
 
 ```bash
-./build/recon_scalar <config.toml>
+./build/recon_lamino <config.toml>
 ```
 
 ### TOML Configuration File

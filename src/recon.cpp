@@ -42,17 +42,20 @@ int main(int argc, char **argv) {
     // parse TOML input
     if (argc < 2) {
         std::cerr << std::format("Usage: {} <input.toml>\n", argv[0]);
-        std::cerr << "Please see config_template.toml for an example input file.\n";
-        tomocam::dump_config("config_template.toml");
+        std::cerr << "Writing an example input file to config_template.toml.\n";
+        tomocam::dump_config(tomocam::LAMINO_CONFIG_TEMPLATE,
+                             "config_template.toml");
         return 1;
     }
 
     // read and parse TOML file
     toml::table config = tomocam::read_toml_file(argv[1]);
     // parse input datasets
-    auto datasets = tomocam::parse_input_datasets<float>(config);
+    auto datasets = tomocam::parse_input_datasets<float>(
+        config, std::filesystem::path(argv[1]).parent_path());
     // parse reconstruction parameters
     auto params = tomocam::parse_recon_params(config);
+    tomocam::warn_laminography_dims(params);
     // output parameters
     auto output = tomocam::parse_output_params(config);
 
