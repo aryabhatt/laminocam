@@ -107,6 +107,13 @@ namespace tomocam::gpu {
         // for tests that need to exercise the multi-slab path on small inputs.
         void set_max_chunk(size_t n) { max_chunk_ = n; }
 
+        // Fix the slab size from a device-memory budget (bytes) so convolve()
+        // does not have to query free memory on every call. Used by the
+        // multi-GPU path, where several chunks share each device.
+        void set_memory_budget(size_t bytes) {
+            max_chunk_ = std::max<size_t>(1, bytes / slab_bytes_per_slice());
+        }
+
         // Slices are independent, so the volume is convolved in slabs of
         // `chunk` slices to bound the padded-FFT working set.
         DeviceArray<T> convolve(const DeviceArray<T> &input) const {
@@ -132,12 +139,16 @@ namespace tomocam::gpu {
         // number of slices per slab: padded real + complex spectrum + result +
         // cuFFT workspace is roughly 4 * psf_n_^2 elements per slice; use at
         // most half of the free device memory.
+        size_t slab_bytes_per_slice() const {
+            return 4 * psf_n_ * psf_n_ * sizeof(T);
+        }
+
         size_t slab_size(size_t nslices) const {
             if (max_chunk_ > 0) return std::min(max_chunk_, nslices);
             size_t free_b = 0, total_b = 0;
             SAFE_CALL(cudaMemGetInfo(&free_b, &total_b));
-            const size_t per_slice = 4 * psf_n_ * psf_n_ * sizeof(T);
-            const size_t fit = std::max<size_t>(1, (free_b / 2) / per_slice);
+            const size_t fit =
+                std::max<size_t>(1, (free_b / 2) / slab_bytes_per_slice());
             return std::min(fit, nslices);
         }
 

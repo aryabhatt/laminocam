@@ -53,6 +53,12 @@ namespace tomocam {
         float xtol = 1e-5f;
         float PAD_FACTOR = 1.4142f;
 
+        // multi-GPU streaming (recon_tomo): the volume stays in host memory and
+        // each solver iteration is streamed through the GPUs in chunks of slices.
+        size_t numGpus = 0;     // GPUs to use; 0 = all visible devices
+        size_t chunkSlices = 0; // slices per chunk; 0 = choose from free memory
+        bool streamed = false;  // stream even if one GPU could hold the volume
+
         void print(std::ostream &os) const {
             std::string reg_str = (regularizer == Regularizer::SPLIT_BREGMAN)
                                       ? "Split-Bregman"
@@ -69,6 +75,9 @@ namespace tomocam {
                 os << "    lambda: " << lambda << "\n";
                 os << "    mu: " << mu << "\n";
             }
+            if (numGpus > 0) os << "  num_gpus: " << numGpus << "\n";
+            if (chunkSlices > 0) os << "  chunk_slices: " << chunkSlices << "\n";
+            if (streamed) os << "  streamed: true\n";
         }
     };
 

@@ -63,7 +63,7 @@ namespace tomocam::cpu {
             T dX = (2 * M_PI) / static_cast<T>(ncols);
             T dY = (2 * M_PI) / static_cast<T>(nrows);
 
-#pragma omp parallel for collapse(3)
+#pragma omp parallel for
             for (size_t i = 0; i < dims.n1; ++i) {
 
                 // compute rotation matrix for each angle

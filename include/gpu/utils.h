@@ -78,6 +78,23 @@ namespace tomocam::gpu {
     }
 
 #endif // __NVCC__
+    // RAII guard: makes `device` current for this scope and restores the previous
+    // device on exit. CUDA's current device is thread-local and a new thread
+    // always starts on device 0, so every worker thread must set it explicitly.
+    class DeviceGuard {
+      private:
+        int prev_ = 0;
+
+      public:
+        explicit DeviceGuard(int device) {
+            SAFE_CALL(cudaGetDevice(&prev_));
+            if (prev_ != device) { SAFE_CALL(cudaSetDevice(device)); }
+        }
+        ~DeviceGuard() { cudaSetDevice(prev_); }
+        DeviceGuard(const DeviceGuard &) = delete;
+        DeviceGuard &operator=(const DeviceGuard &) = delete;
+    };
+
     // Utility function to ensure that the current GPU device matches the specified
     // GPU ID
     inline bool ensure_device(int gpu_id) {

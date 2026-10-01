@@ -71,24 +71,22 @@ namespace tomocam::gpu::nufft {
 
         uint64_t genKey(int type, int dim, std::array<int64_t, 3> n_modes, int iflag,
                         int gpu_id) const {
-            // gpu_id: 2 bits (0-3)
-            // type: 2 bits (1-2)
-            // dim: 2 bits (1-3)
-            // n_modes: 16 bits each (0-65535)
-            // iflag: 1 bit (0 for +1, 1 for -1)
-            // Total: 2 + 2 + 2 + 16 + 16 + 16 + 1 = 55 bits, fits in uint64_t
+            // Bit layout (63 -> 0):
+            //   63:60 - gpu_id  (4 bits, 0-15)
+            //   59:58 - type    (2 bits, 1-2)
+            //   57:56 - dim     (2 bits, 1-3)
+            //   55:40 - n_modes[0] (16 bits)
+            //   39:24 - n_modes[1] (16 bits)
+            //   23:8  - n_modes[2] (16 bits)
+            //    7    - iflag    (1 bit, 0 for +1, 1 for -1)
             uint64_t key = 0;
-            key |= (static_cast<uint64_t>(gpu_id) & 0x3) << 62; // 2 bits for gpu_id
-            key |= (static_cast<uint64_t>(type) & 0x3) << 60;   // 2 bits for type
-            key |= (static_cast<uint64_t>(dim) & 0x3) << 58;    // 2 bits for dim
-            key |= (static_cast<uint64_t>(n_modes[0]) & 0xFFFF)
-                   << 42; // 16 bits for n_modes[0]
-            key |= (static_cast<uint64_t>(n_modes[1]) & 0xFFFF)
-                   << 26; // 16 bits for n_modes[1]
-            key |= (static_cast<uint64_t>(n_modes[2]) & 0xFFFF)
-                   << 10; // 16 bits for n_modes[2]
-            key |= (static_cast<uint64_t>(iflag > 0 ? 1 : 0) & 0x1)
-                   << 9; // 1 bit for iflag
+            key |= (static_cast<uint64_t>(gpu_id) & 0xF) << 60;
+            key |= (static_cast<uint64_t>(type) & 0x3) << 58;
+            key |= (static_cast<uint64_t>(dim) & 0x3) << 56;
+            key |= (static_cast<uint64_t>(n_modes[0]) & 0xFFFF) << 40;
+            key |= (static_cast<uint64_t>(n_modes[1]) & 0xFFFF) << 24;
+            key |= (static_cast<uint64_t>(n_modes[2]) & 0xFFFF) << 8;
+            key |= (static_cast<uint64_t>(iflag > 0 ? 1 : 0) & 0x1) << 7;
             return key;
         }
     };

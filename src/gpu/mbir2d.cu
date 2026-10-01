@@ -24,9 +24,11 @@
 #include "array.h"
 #include "gpu/device_array.h"
 #include "gpu/gpu_opt.h"
+#include "gpu/multigpu.h"
 #include "gpu/polar_grid2d.h"
 #include "gpu/projection.h"
 #include "gpu/toeplitz2d.h"
+#include "gpu/tomocam.h"
 #include "recon_params.h"
 
 namespace tomocam::gpu {
@@ -36,6 +38,16 @@ namespace tomocam::gpu {
                     const ReconParams &params) {
 
         const dims_t recon_dims = params.recon_dims;
+
+        // Stream chunks of slices through the GPUs (host-driven solver) when more
+        // than one GPU is used, when asked to, or when one GPU cannot hold the
+        // volume. Otherwise run entirely on the current device.
+        if (sinogram.nslices() >= recon_dims.n1 &&
+            (params.streamed || params.chunkSlices > 0 ||
+             resolve_num_gpus(params.numGpus) > 1 ||
+             !volume_fits_one_gpu<T>(params))) {
+            return MBIR2D_streamed<T>(sinogram, theta, params);
+        }
 
         PolarGrid2D<T> pg(theta, sinogram.ncols());
 

@@ -31,6 +31,7 @@
 #include "array.h"
 #include "gpu/polar_grid.h"
 #include "gpu/polar_grid2d.h"
+#include "gpu/utils.h"
 #include "polar_grid.h"
 
 namespace tomocam::gpu::nufft {
@@ -95,6 +96,7 @@ namespace tomocam::gpu::nufft {
         using Traits = cuFinfftTraits<T>;
         typename Traits::plan_type plan;
         bool initialized = false;
+        int gpu_id_ = 0; // device the plan lives on
 
       public:
         cuFinfftPlanWrapper() = default;
@@ -106,6 +108,8 @@ namespace tomocam::gpu::nufft {
                 throw std::runtime_error(
                     "cuFinfftPlanWrapper constructor: dim must be 1, 2, or 3");
             }
+            gpu_id_ = gpu_id;
+            DeviceGuard guard(gpu_id_);
             cufinufft_opts opts;
             cufinufft_default_opts(&opts);
             opts.gpu_device_id = gpu_id;
@@ -123,6 +127,7 @@ namespace tomocam::gpu::nufft {
                 throw std::runtime_error(
                     "cuFinfftPlanWrapper::set_points called before make_plan");
             }
+            DeviceGuard guard(gpu_id_);
             T *x = const_cast<T *>(pg.x.data());
             T *y = const_cast<T *>(pg.y.data());
             T *z = const_cast<T *>(pg.z.data());
@@ -137,6 +142,7 @@ namespace tomocam::gpu::nufft {
                 throw std::runtime_error(
                     "cuFinfftPlanWrapper::set_points called before make_plan");
             }
+            DeviceGuard guard(gpu_id_);
             T *x = const_cast<T *>(pg.x.data());
             T *y = const_cast<T *>(pg.y.data());
             int ierr = Traits::setpts(plan, pg.npts, x, y, nullptr, 0, nullptr,
@@ -149,6 +155,7 @@ namespace tomocam::gpu::nufft {
                 throw std::runtime_error(
                     "cuFinfftPlanWrapper::execute: plan not initialized");
             }
+            DeviceGuard guard(gpu_id_);
             int ierr = Traits::execute(plan, cz, fz);
             if (ierr != 0) {
                 throw std::runtime_error("Error in cufinufft_execute");
@@ -156,7 +163,10 @@ namespace tomocam::gpu::nufft {
         }
 
         ~cuFinfftPlanWrapper() {
-            if (initialized) { Traits::destroy(plan); }
+            if (initialized) {
+                DeviceGuard guard(gpu_id_);
+                Traits::destroy(plan);
+            }
         }
 
         cuFinfftPlanWrapper(const cuFinfftPlanWrapper &) = delete;
@@ -166,16 +176,21 @@ namespace tomocam::gpu::nufft {
 
         // move constructor
         cuFinfftPlanWrapper(cuFinfftPlanWrapper &&other) noexcept
-            : plan(other.plan), initialized(other.initialized) {
+            : plan(other.plan), initialized(other.initialized),
+              gpu_id_(other.gpu_id_) {
             other.initialized = false;
         }
 
         // move assignment operator
         cuFinfftPlanWrapper &operator=(cuFinfftPlanWrapper &&other) noexcept {
             if (this != &other) {
-                if (initialized) { Traits::destroy(plan); }
+                if (initialized) {
+                    DeviceGuard guard(gpu_id_);
+                    Traits::destroy(plan);
+                }
                 plan = other.plan;
                 initialized = other.initialized;
+                gpu_id_ = other.gpu_id_;
                 other.initialized = false;
             }
             return *this;

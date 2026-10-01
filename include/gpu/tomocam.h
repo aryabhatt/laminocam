@@ -74,6 +74,24 @@ namespace tomocam::gpu {
     Array<T> MBIR2D(const Array<T> &sinogram, const std::vector<T> &theta,
                     const ReconParams &params);
 
+    /**
+     * Multi-GPU variant of MBIR2D. The solver loops run on the host and the
+     * volume stays in host memory; every solver iteration is streamed through
+     * params.numGpus devices (0 = all) in chunks of params.chunkSlices slices
+     * (0 = chosen from free device memory). Split-Bregman passes carry the halo
+     * slices needed by the 3D finite differences, so the result matches the
+     * single-device solver up to floating-point summation order.
+     * MBIR2D dispatches here automatically when more than one GPU is used, when
+     * params.streamed is set, or when the volume does not fit on one GPU.
+     */
+    template <typename T>
+    Array<T> MBIR2D_streamed(const Array<T> &sinogram, const std::vector<T> &theta,
+                             const ReconParams &params);
+
+    /// True if the single-device solvers' working set fits on the current GPU.
+    template <typename T>
+    bool volume_fits_one_gpu(const ReconParams &params);
+
 } // namespace tomocam::gpu
 
 #endif // TOMOCAM_GPU_H

@@ -359,7 +359,8 @@ namespace tomocam {
                 "Missing [recon_params] section in config file");
         }
         warn_unknown_keys(*recon,
-                          {"max_iters", "tol", "xtol", "recon_dims", "regularizer"},
+                          {"max_iters", "tol", "xtol", "recon_dims", "regularizer",
+                           "num_gpus", "chunk_slices", "streamed"},
                           "[recon_params]");
         p.maxIters = (*recon)["max_iters"].value_or<size_t>(50);
 
@@ -382,6 +383,9 @@ namespace tomocam {
         }
         p.tol = (*recon)["tol"].value_or<float>(1e-5f);
         p.xtol = (*recon)["xtol"].value_or<float>(1e-5f);
+        p.numGpus = (*recon)["num_gpus"].value_or<size_t>(0);
+        p.chunkSlices = (*recon)["chunk_slices"].value_or<size_t>(0);
+        p.streamed = (*recon)["streamed"].value_or<bool>(false);
         if (recon->contains("regularizer")) {
             auto reg = (*recon)["regularizer"].as_table();
             if (reg) {

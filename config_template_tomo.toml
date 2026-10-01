@@ -22,6 +22,13 @@ xtol = 1e-5
 # Sizes are (slices, y, x). recon_dims[0] should match the detector row count.
 # The in-plane size must be square. Even values are reduced to the next odd number.
 recon_dims = [745, 745, 745]
+# Multi-GPU (optional). The volume stays in host memory and every solver
+# iteration is streamed through the GPUs in chunks of slices, so the volume
+# need not fit on one GPU. The streamed path is used automatically when more
+# than one GPU is used or the volume does not fit on a single GPU.
+# num_gpus = 0          # GPUs to use; 0 (default) = all visible devices
+# chunk_slices = 0      # slices per chunk; 0 (default) = pick from free GPU memory
+# streamed = false      # force the streamed path even on a single GPU
 
 # Omit [recon_params.regularizer] for unconstrained least squares.
 [recon_params.regularizer]

@@ -41,6 +41,10 @@ if (USE_GPU)
     target_link_libraries(test_mbir2d_gpu_cpu PUBLIC tomocam_scalar)
     add_test(NAME mbir2d_gpu_cpu COMMAND test_mbir2d_gpu_cpu)
 
+    add_executable(test_mbir2d_multi_gpu test_mbir2d_multi_gpu.cu)
+    target_link_libraries(test_mbir2d_multi_gpu PUBLIC tomocam_scalar)
+    add_test(NAME mbir2d_multi_gpu COMMAND test_mbir2d_multi_gpu)
+
     add_executable(test_nufft_gpu test_nufft_gpu.cu)
     target_link_libraries(test_nufft_gpu PUBLIC tomocam_scalar)
     add_test(NAME nufft_gpu COMMAND test_nufft_gpu)
@@ -69,3 +73,6 @@ if (USE_GPU)
     target_link_libraries(test_device_array_ops PUBLIC tomocam_scalar)
     add_test(NAME device_array_ops COMMAND test_device_array_ops)
 endif()
+
+add_executable(test_slice_chunks test_slice_chunks.cpp)
+add_test(NAME slice_chunks COMMAND test_slice_chunks)

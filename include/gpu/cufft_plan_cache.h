@@ -66,21 +66,19 @@ namespace tomocam::gpu::fft {
         uint64_t genKey(int dim, std::array<int, 3> n, cufftType type,
                         int gpu_id) const {
             // Bit layout (63 -> 0):
-            //   63:62 - gpu_id  (2 bits, 0-3)
-            //   61:60 - dim     (2 bits, 1-3)
-            //   59:44 - n[0] (16 bits, 0-65535)
-            //   43:28 - n[1] (16 bits, 0-65535)
-            //   27:12 - n[2] (16 bits, 0-65535)
-            //   11:4  - type    (8 bits, covers all cufftType values up to 0x6c)
-            //    3:0  - unused
-            // Total: 2 + 2 + 16 + 16 + 16 + 8 = 60 bits, fits in uint64_t
+            //   63:60 - gpu_id  (4 bits, 0-15)
+            //   59:58 - dim     (2 bits, 1-3)
+            //   57:42 - n[0] (16 bits, 0-65535)
+            //   41:26 - n[1] (16 bits, 0-65535)
+            //   25:10 - n[2] (16 bits, 0-65535)
+            //    9:2  - type    (8 bits, covers all cufftType values up to 0x6c)
             uint64_t key = 0;
-            key |= (static_cast<uint64_t>(gpu_id) & 0x3) << 62;  // 2 bits for gpu_id
-            key |= (static_cast<uint64_t>(dim) & 0x3) << 60;     // 2 bits for dim
-            key |= (static_cast<uint64_t>(n[0]) & 0xFFFF) << 44; // 16 bits for n0
-            key |= (static_cast<uint64_t>(n[1]) & 0xFFFF) << 28; // 16 bits for n1
-            key |= (static_cast<uint64_t>(n[2]) & 0xFFFF) << 12; // 16 bits for n2
-            key |= (static_cast<uint64_t>(type) & 0xFF) << 4;    // 8 bits for type
+            key |= (static_cast<uint64_t>(gpu_id) & 0xF) << 60;
+            key |= (static_cast<uint64_t>(dim) & 0x3) << 58;
+            key |= (static_cast<uint64_t>(n[0]) & 0xFFFF) << 42;
+            key |= (static_cast<uint64_t>(n[1]) & 0xFFFF) << 26;
+            key |= (static_cast<uint64_t>(n[2]) & 0xFFFF) << 10;
+            key |= (static_cast<uint64_t>(type) & 0xFF) << 2;
             return key;
         }
     };

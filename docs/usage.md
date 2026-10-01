@@ -151,6 +151,33 @@ export CUDA_VISIBLE_DEVICES=  # Empty string disables CUDA
 ./release/recon config.toml
 ```
 
+### Multiple GPUs (`recon_tomo`)
+
+`recon_tomo` can use every GPU in the machine. The volume stays in host memory and
+the solver loops (CG, Split-Bregman) run on the host; each solver iteration is
+streamed through the GPUs in chunks of slices. Worker threads, one per GPU, pull
+chunks from a shared queue, so device memory is bounded by the chunk size rather
+than the volume size, and volumes that do not fit on one GPU can be reconstructed.
+
+The streamed path is chosen automatically when more than one GPU is visible, when
+the volume does not fit on one GPU, or when `streamed = true`. The results match
+the single-device solver (Split-Bregman chunks carry the 2 halo slices its 3D
+finite differences need), up to floating-point summation order.
+
+```toml
+[recon_params]
+num_gpus = 0        # GPUs to use; 0 (default) = all visible devices
+chunk_slices = 0    # slices per chunk; 0 (default) = chosen from free GPU memory
+streamed = false    # force streaming even for one GPU
+```
+
+Notes:
+
+- When the volume fits on one GPU, the single-device path (`num_gpus = 1`) is
+  faster, because streaming moves the volume over PCIe on every iteration. Use
+  multiple GPUs for volumes that are too large for one device.
+- Use `CUDA_VISIBLE_DEVICES=0,1` to restrict which GPUs are used.
+
 ### Controlling Thread Count
 
 For OpenMP:

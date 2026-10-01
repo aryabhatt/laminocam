@@ -179,7 +179,14 @@ int main(int argc, char **argv) {
     }
     tomocam::gpu::nufft::plans::cache<float>.clear();
     tomocam::gpu::fft::cache::plans<float>.clear();
-    cudaDeviceReset();
+    // release the CUDA context of every device that may have been used
+    int ndev = 0;
+    if (cudaGetDeviceCount(&ndev) == cudaSuccess) {
+        for (int g = 0; g < ndev; ++g) {
+            cudaSetDevice(g);
+            cudaDeviceReset();
+        }
+    }
 #else
     std::cout << "Running reconstruction on CPU...\n";
     recon = cpu_mbir2d(sinogram, theta, params);
