@@ -61,6 +61,7 @@
 
 using namespace tomocam;
 
+#ifndef USE_GPU
 // CPU reconstruction of the prepared sinogram {n_slices, n_angles, n_cols}.
 static Array<float> cpu_mbir2d(const Array<float> &sinogram,
                                const std::vector<float> &theta,
@@ -97,6 +98,7 @@ static Array<float> cpu_mbir2d(const Array<float> &sinogram,
     }
     return recon;
 }
+#endif
 
 int main(int argc, char **argv) {
 
@@ -172,10 +174,10 @@ int main(int argc, char **argv) {
         std::cout << "Running reconstruction on GPU...\n";
         recon = tomocam::gpu::MBIR2D<float>(sinogram, theta, params);
     } catch (const std::exception &e) {
-        std::cerr << std::format(
-            "GPU reconstruction failed ({}); falling back to CPU\n", e.what());
-        cudaGetLastError(); // reset any sticky CUDA error state
-        recon = cpu_mbir2d(sinogram, theta, params);
+        // No CPU fallback: it takes far longer and would hide GPU failures
+        // (e.g. out-of-memory) behind a successful exit.
+        std::cerr << std::format("GPU reconstruction failed: {}\n", e.what());
+        return 1;
     }
     tomocam::gpu::nufft::plans::cache<float>.clear();
     tomocam::gpu::fft::cache::plans<float>.clear();
