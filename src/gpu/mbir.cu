@@ -17,10 +17,12 @@
  * perform publicly and display publicly, and to permit other to do so.
  *---------------------------------------------------------------------------------
  */
+#include <array>
 #include <cassert>
 #include <format>
 #include <functional>
 #include <iostream>
+#include <vector>
 
 #include "array.h"
 #include "array_ops.h"
@@ -77,7 +79,8 @@ namespace tomocam::gpu {
         }
         dims_t proj_dims = {n_projs, padded_nrows, padded_ncols};
 
-        // combine datasets and build stacked projections on CPU
+        // stack all datasets on the device into one unified polar grid: a single
+        // backprojection and a single Toeplitz PSF instead of one per dataset
         std::vector<T> theta;
         std::vector<T> gamma;
         std::vector<T> beta;
@@ -85,10 +88,13 @@ namespace tomocam::gpu {
         DeviceArray<T> yT;
         PointSpreadFunction<T> psf;
         {
-            Array<T> stacked_projs(proj_dims);
+            DeviceArray<T> y_stacked(proj_dims);
             size_t offset = 0;
-            for (const auto &[projs, angles, gamma_ref, beta_ref, shifts_ds] : datasets) {
-                Array<T> y = projs / scale;
+            for (const auto &[projs, angles, gamma_ref, beta_ref, shifts_ds] :
+                 datasets) {
+                // move data to device, normalize and pad
+                DeviceArray<T> y(projs);
+                y /= scale;
                 y = pad2d(y, padfac, PadType::SYMMETRIC);
                 if (y.nrows() != padded_nrows || y.ncols() != padded_ncols) {
                     throw std::runtime_error(
@@ -96,29 +102,29 @@ namespace tomocam::gpu {
                                     "expected dimensions {}",
                                     y.dims().to_string(), proj_dims.to_string()));
                 }
-                std::copy(y.data(), y.data() + y.size(),
-                          stacked_projs.data() + offset);
+                copyD2D(y_stacked.data() + offset, y.data(), y.bytes());
                 offset += y.size();
                 theta.insert(theta.end(), angles.begin(), angles.end());
-                for (size_t i = 0; i < angles.size(); ++i) {
-                    gamma.push_back(gamma_ref);
-                    beta.push_back(beta_ref);
-                }
+                gamma.insert(gamma.end(), angles.size(), gamma_ref);
+                beta.insert(beta.end(), angles.size(), beta_ref);
                 shifts.insert(shifts.end(), shifts_ds.begin(), shifts_ds.end());
             }
 
-            // try GPU NUFFT first; fall back to CPU if device memory is insufficient
+            // try GPU NUFFT first; fall back to CPU if the grid does not fit
             try {
-                auto gpu_grid =
-                    PolarGrid<T>(theta, gamma, beta, padded_nrows, padded_ncols);
-                DeviceArray<T> d_p(stacked_projs);
-                yT = backproj(d_p, gpu_grid, recon_dims, shifts);
-                psf = PointSpreadFunction<T>(gpu_grid, recon_dims);
+                // backproject once with the unified grid to get A^T y
+                PolarGrid<T> pg(theta, gamma, beta, padded_nrows, padded_ncols);
+                yT = backproj(y_stacked, pg, recon_dims, shifts);
+
+                // precompute the Toeplitz PSF once for the unified grid, so
+                // A^T A becomes an FFT convolution instead of a NUFFT pair
+                psf = PointSpreadFunction<T>(pg, recon_dims);
             } catch (const std::exception &e) {
                 std::cerr << std::format(
                     "GPU backprojection/PSF failed ({}); falling back to CPU\n",
                     e.what());
                 cudaGetLastError(); // reset any sticky CUDA error state
+                Array<T> stacked_projs = y_stacked.to_host();
                 auto cpu_grid = tomocam::cpu::PolarGrid<T>(
                     theta, gamma, beta, padded_nrows, padded_ncols);
                 yT = DeviceArray<T>(
