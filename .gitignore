@@ -5,3 +5,4 @@ build/
 *.pdf
 *.bib
 *.typ
+config_tv.toml
