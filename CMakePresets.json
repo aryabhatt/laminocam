@@ -2,77 +2,25 @@
     "version": 6,
     "configurePresets": [
         {
-            "name": "macos",
-            "displayName": "MacOS",
-            "description": "Debug build with debug symbols for MacOS",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/debug",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_C_COMPILER": "clang",
-                "CMAKE_CXX_COMPILER": "clang++",
-                "CMAKE_CXX_FLAGS": "-fexperimental-library",
-                "CMAKE_OSX_DEPLOYMENT_TARGET": "15.5",
-                "ENABLE_TESTS": {
-                    "type": "BOOL",
-                    "value": "ON"
-                }
-            },
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Darwin"
-            }
-        },
-        {
             "name": "linux",
-            "displayName": "Yoneda",
-            "description": "Debug build with debug symbols for Arch Linux",
+            "displayName": "Linux Release",
+            "description": "Release build for generic Linux with CUDA",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/debug",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_C_COMPILER": "clang",
-                "CMAKE_CXX_COMPILER": "clang++",
-                "CMAKE_CUDA_HOST_COMPILER": "clang++",
-                "CMAKE_CUDA_STANDARD": "20",
-                "CMAKE_CUDA_ARCHITECTURES": "native",
-                "USE_GPU": {
-                    "type": "BOOL",
-                    "value": "ON"
-                },
-                "ENABLE_TESTS": {
-                    "type": "BOOL",
-                    "value": "ON"
-                }
-            },
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Linux"
-            }
-        },
-        {
-            "name": "linux-release",
-            "displayName": "Yoneda Release",
-            "description": "Release build for Arch Linux",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/release",
+            "binaryDir": "${sourceDir}/build/release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_C_COMPILER": "clang",
-                "CMAKE_CXX_COMPILER": "clang++",
-                "CMAKE_CUDA_HOST_COMPILER": "clang++",
-                "CMAKE_CUDA_STANDARD": "20",
-                "CMAKE_CUDA_ARCHITECTURES": "native",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "ENABLE_TESTS": {
+                    "type": "BOOL",
+                    "value": "ON"
+                },
                 "USE_GPU": {
                     "type": "BOOL",
                     "value": "ON"
                 },
-                "ENABLE_TESTS": {
-                    "type": "BOOL",
-                    "value": "ON"
-                }
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++",
+                "CMAKE_CUDA_HOST_COMPILER": "clang++"
             },
             "condition": {
                 "type": "equals",
@@ -81,25 +29,109 @@
             }
         },
         {
-            "name": "nersc",
+            "name": "linux-debug",
+            "displayName": "Linux Debug",
+            "description": "Debug build with debug symbols for generic Linux with CUDA",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "ENABLE_TESTS": {
+                    "type": "BOOL",
+                    "value": "ON"
+                },
+                "USE_GPU": {
+                    "type": "BOOL",
+                    "value": "ON"
+                },
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++",
+                "CMAKE_CUDA_HOST_COMPILER": "clang++"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            }
+        },
+        {
+            "name": "ptycho5",
+            "displayName": "ptycho5 Release",
+            "description": "Release build for ptycho5 (clang-18)",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_C_COMPILER": "clang-18",
+                "CMAKE_CXX_COMPILER": "clang++-18",
+                "CMAKE_CUDA_HOST_COMPILER": "clang++-18",
+                "ENABLE_TESTS": {
+                    "type": "BOOL",
+                    "value": "ON"
+                },
+                "USE_GPU": {
+                    "type": "BOOL",
+                    "value": "ON"
+                },
+                "CMAKE_PREFIX_PATH": "$env{HOME}/.local"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            }
+        },
+        {
+            "name": "ptycho5-debug",
+            "displayName": "ptycho5 Debug",
+            "description": "Debug build for ptycho5 (clang-18)",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_C_COMPILER": "clang-18",
+                "CMAKE_CXX_COMPILER": "clang++-18",
+                "CMAKE_CUDA_HOST_COMPILER": "clang++-18",
+                "ENABLE_TESTS": {
+                    "type": "BOOL",
+                    "value": "ON"
+                },
+                "USE_GPU": {
+                    "type": "BOOL",
+                    "value": "ON"
+                },
+                "CMAKE_PREFIX_PATH": "$env{HOME}/.local"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            }
+        },
+        {
+            "name": "nersc-release",
             "displayName": "Perlmutter Release",
-            "description": "Release build for NERSC Perlmutter",
+            "description": "Release build for NERSC Perlmutter with CUDA",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_C_COMPILER": "gcc",
                 "CMAKE_CXX_COMPILER": "g++",
-                "CMAKE_CUDA_HOST_COMPILER":"g++",
-                "finufft_DIR": "/global/common/software/als/finufft/",
                 "ENABLE_TESTS": {
                     "type": "BOOL",
-                    "value": "OFF"
+                    "value": "ON"
                 },
+                "CMAKE_CUDA_ARCHITECTURES": "native",
                 "USE_GPU": {
                     "type": "BOOL",
                     "value": "ON"
-                }
+                },
+                "CMAKE_CUDA_HOST_COMPILER": "g++",
+                "finufft_DIR": "/global/common/software/als/finufft/"
             },
             "condition": {
                 "type": "equals",
@@ -111,93 +143,14 @@
             "name": "mem-verify",
             "displayName": "Memory Verification",
             "description": "Debug build with TOMOCAM_MEMORY_VERIFY=ON: inserts cudaMemGetInfo checkpoints in split_bregman and cgsolver to compare actual vs. predicted GPU memory at runtime.",
-            "inherits": "linux",
+            "inherits": "linux-debug",
             "binaryDir": "${sourceDir}/build/mem-verify",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
                 "TOMOCAM_MEMORY_VERIFY": {
                     "type": "BOOL",
                     "value": "ON"
                 }
             }
-        }
-
-    ],
-    "buildPresets": [
-        { "name": "macos", "configurePreset": "macos", "cleanFirst": false },
-        { "name": "linux", "configurePreset": "linux" },
-        { "name": "linux-release", "configurePreset": "linux-release" },
-        { "name": "nersc", "configurePreset": "nersc" },
-        { "name": "mem-verify", "configurePreset": "mem-verify" }
-    ],
-    "testPresets": [
-      {
-          "name": "linux",
-          "displayName": "test-linux",
-          "configurePreset": "linux",
-          "output": {
-              "outputOnFailure" : true,
-              "verbosity": "verbose"
-          },
-          "filter": {
-              "include":  { "name": "test" }
-          }
-      },
-      {
-          "name": "mem-verify",
-          "displayName": "Memory verification tests",
-          "configurePreset": "mem-verify",
-          "output": {
-              "outputOnFailure": true,
-              "verbosity": "verbose"
-          },
-          "filter": {
-              "include": { "name": "test" }
-          }
-      }  
-    ],
-    "workflowPresets": [
-        {
-            "name": "macos",
-            "displayName": "Full workflow for macos",
-            "steps": [
-                { "name": "macos", "type": "configure" },
-                { "name": "macos", "type": "build" }
-            ]
-        },
-        {
-            "name": "linux",
-            "displayName": "Full workflow for Linux",
-            "steps": [
-                { "name": "linux", "type": "configure" },
-                { "name": "linux", "type": "build" },
-                { "name": "linux", "type": "test"}
-            ]
-        },
-        {
-            "name": "linux-release",
-            "displayName": "Full workflow for linux release",
-            "steps": [
-                { "name": "linux-release", "type": "configure" },
-                { "name": "linux-release", "type": "build" }
-            ]
-        },
-        {
-            "name": "nersc",
-            "displayName": "Full workflow for nersc",
-            "steps": [
-                { "name": "nersc", "type": "configure" },
-                { "name": "nersc", "type": "build" }
-            ]
-        },
-        {
-            "name": "mem-verify",
-            "displayName": "Configure, build, and run memory-verify tests",
-            "steps": [
-                { "name": "mem-verify", "type": "configure" },
-                { "name": "mem-verify", "type": "build" },
-                { "name": "mem-verify", "type": "test" }
-            ]
         }
     ]
 }
