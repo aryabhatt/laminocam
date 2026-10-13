@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     lld \
     libtbb-dev \
     clang \
+    libomp-dev \
     libc++-dev \
     libc++abi-dev \
     libtiff-dev \
@@ -60,6 +61,7 @@ RUN git clone -b master https://github.com/aryabhatt/laminocam.git && \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_CXX_COMPILER=clang++ \
     -DCMAKE_CUDA_HOST_COMPILER=clang++ \
+    -DCMAKE_CUDA_ARCHITECTURES=80 \
     -DENABLE_TESTS:BOOL=OFF && \
     cmake --build build && cmake --install build
 RUN rm -rf laminocam && ldconfig 
